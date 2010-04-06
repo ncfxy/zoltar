@@ -2,3 +2,10 @@ syntax: glob
 *~
 *.o
 *.cache
+Debug
+Release
+
+Makefile.common
+config.log
+config.status
+configure.out

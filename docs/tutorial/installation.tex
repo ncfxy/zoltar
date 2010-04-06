@@ -1,6 +1,6 @@
 
 The Zoltar tool set depends on the Low Level Virtual Machine framework and
-is currently only known to be compatible with version 2.4.
+is currently only known to be compatible with version 2.6.
 This version of \verb|llvm| can be downloaded from 
 \verb|http://llvm.org| and can be installed according to their instructions.
 Also, make sure the \verb|ncurses| and \verb|libgtk-2.0dev| packages are
@@ -14,20 +14,20 @@ but does not cover all details and is not guaranteed to work on your system.
 It is recommended to look at the getting-started guide on the \verb|llvm| website:\\
 \verb|  http://llvm.org/docs/GettingStarted.html|
 
-First, download the \verb|llvm| version 2.4 sources and the
+First, download the \verb|llvm| version 2.6 sources and the
 \verb|llvm-gcc frontend| sources.
 The latter is required to compile C programs using \verb|llvm|.
 Both are located at\\
-\verb|  http://llvm.org/releases/download.html#2.4|\\
+\verb|  http://llvm.org/releases/download.html#2.6|\\
 Next, unpack both using\\
-\verb|  # tar -xzf llvm-2.4.tar.gz|\\
-\verb|  # tar -xzf llvm-gcc-4.2-2.4.source.tar.gz|\\
+\verb|  # tar -xzf llvm-2.6.tar.gz|\\
+\verb|  # tar -xzf llvm-gcc-4.2-2.6.source.tar.gz|\\
 Make an object directory and an install directory for llvm:\\
 \verb|  # mkdir llvm-obj|\\
 \verb|  # mkdir llvm-install|\\
 Install \verb|llvm|:\\
 \verb|  # cd llvm-obj|\\
-\verb|  # ../llvm-2.4/configure|\\
+\verb|  # ../llvm-2.6/configure|\\
 \verb|  # make|\\
 At this point, an \verb|llvm| version without gcc-frontend is built.
 To make the gcc-frontend, however, we need this installation of \verb|llvm|.
@@ -37,14 +37,17 @@ Make an object directory and an install directory for \verb|llvm-gcc| as well:\\
 \verb|  # mkdir llvm-gcc-install|\\
 and configure it to use the \verb|llvm| we have just installed.\\
 \verb|  # cd llvm-gcc-obj|\\
-\verb|  # ../llvm-gcc4.2-2.4.source/configure \ |\\
+\verb|  # ../llvm-gcc4.2-2.6.source/configure \ |\\
 \verb|  > --prefix=`pwd`/../llvm-gcc-install --program-prefix=llvm- \ |\\
 \verb|  > --enable-llvm=`pwd`/../llvm-obj --enable-languages=c,c++ |\\
+if you are compiling in a 64 bit system, add the following option if during
+\verb|make| it fails complaining about \verb|user32.h| headers\\
+\verb|  > --disable-multilib |\\
 \verb|  # make|\\
 \verb|  # make install|\\
 After this, \verb|llvm| must be reconfigured to include \verb|llvm-gcc|.\\
 \verb|  # cd ../llvm-obj|\\
-\verb|  # ../llvm-2.4/configure --prefix=`pwd`/../llvm-install \ |\\
+\verb|  # ../llvm-2.6/configure --prefix=`pwd`/../llvm-install \ |\\
 \verb|  > --withllvmgccdir=`pwd`/../llvm-gcc-install|\\
 \verb|  # make |\\
 \verb|  # make install |
@@ -66,7 +69,7 @@ Inside the unpacked directory run \\
 where \verb|<LLVMSRCDIR>| and
 \verb|<LLVMOBJDIR>| should be the directory containing the 
 \verb|llvm| source files and \verb|llvm| object files respectively
-(\verb|/path/to/llvm-2.4| and \verb|/path/to/llvm-obj| in the previous section).
+(\verb|/path/to/llvm-2.6| and \verb|/path/to/llvm-obj| in the previous section).
 \verb|<INSTALLDIR>| should be the place where you want the tool binaries and libraries to
 be located.
 Next, build and install the tool set using \\
@@ -118,4 +121,7 @@ Within the directory of each tool or library in the Zoltar package one can type
 \verb|make| to build a release version of that particular tool or library or type
 \verb|make ENABLE_OPTIMIZED=0| to build a debug version.
 
+The use of \verb|ENABLE_OPTIMIZED=0| is only a temporal flag. If you want to make
+debug the default option, use the following flag when compiling llvm and zoltar:\\
+\verb|  > --disable-optimized |\\
 

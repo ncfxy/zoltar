@@ -20,3 +20,5 @@ PROJ_INSTALL_ROOT := @prefix@
 
 # Include LLVM's Master Makefile.
 include $(LLVM_OBJ_ROOT)/Makefile.common
+
+PROJ_docsdir    := $(DESTDIR)$(PROJ_prefix)/docs/$(PROJECT_NAME)
