@@ -42,6 +42,8 @@ bool InvStoreInstrumenter::runOnModule(Module &M) {
   cerr << "instrument: --- Store Invariant ---\n";
 
   Function *Main = M.getFunction("main");
+  LLVMContext &C = M.getContext();
+  
   if (Main == 0) {
     cerr << "WARNING: cannot insert store instrumentation into a module"
          << " with no main function!\n";
@@ -50,28 +52,28 @@ bool InvStoreInstrumenter::runOnModule(Module &M) {
 
   // Add library function prototypes
   Constant *StoreDoubleFn = M.getOrInsertFunction("_handleInvariantChangeDouble", 
-                              Type::VoidTy,   // returns void
-                              Type::Int32Ty,  // invTypeIndex
-                              Type::Int32Ty,  // invIndex
-                              Type::DoubleTy, // val
+                              Type::getVoidTy(C),   // returns void
+                              Type::getInt32Ty(C),  // invTypeIndex
+                              Type::getInt32Ty(C),  // invIndex
+                              Type::getDoubleTy(C), // val
                               NULL);
   Constant *StoreIntegerFn = M.getOrInsertFunction("_handleInvariantChangeInt", 
-                              Type::VoidTy,   // returns void
-                              Type::Int32Ty,  // invTypeIndex
-                              Type::Int32Ty,  // invIndex
-                              Type::Int32Ty,  // val
+                              Type::getVoidTy(C),   // returns void
+                              Type::getInt32Ty(C),  // invTypeIndex
+                              Type::getInt32Ty(C),  // invIndex
+                              Type::getInt32Ty(C),  // val
                               NULL);
   Constant *StorePointerFn = M.getOrInsertFunction("_handleInvariantChangePtr", 
-                              Type::VoidTy,   // returns void
-                              Type::Int32Ty,  // invTypeIndex
-                              Type::Int32Ty,  // invIndex
-                              PointerType::getUnqual(Type::Int32Ty),  // val
+                              Type::getVoidTy(C),   // returns void
+                              Type::getInt32Ty(C),  // invTypeIndex
+                              Type::getInt32Ty(C),  // invIndex
+                              PointerType::getUnqual(Type::getInt32Ty(C)),  // val
                               NULL);
   Constant *StoreUintFn = M.getOrInsertFunction("_handleInvariantChangeUInt", 
-                              Type::VoidTy,   // returns void
-                              Type::Int32Ty,  // invTypeIndex
-                              Type::Int32Ty,  // invIndex
-                              Type::Int32Ty,  // val
+                              Type::getVoidTy(C),   // returns void
+                              Type::getInt32Ty(C),  // invTypeIndex
+                              Type::getInt32Ty(C),  // invIndex
+                              Type::getInt32Ty(C),  // val
                               NULL);
 
 
@@ -135,24 +137,24 @@ bool InvStoreInstrumenter::runOnModule(Module &M) {
           // which depends on the type of the stored value,
           // before the current store instruction
           if(InstType->isInteger()) {
-            Args[0] = ConstantInt::get(Type::Int32Ty, invariantTypeIndex);
-            Args[1] = ConstantInt::get(Type::Int32Ty, nInvariants++);
-            Args[2] = CastInst::createIntegerCast(Val, Type::Int32Ty, true, "st.cast", I);
+            Args[0] = ConstantInt::get(Type::getInt32Ty(C), invariantTypeIndex);
+            Args[1] = ConstantInt::get(Type::getInt32Ty(C), nInvariants++);
+            Args[2] = CastInst::CreateIntegerCast(Val, Type::getInt32Ty(C), true, "st.cast", I);
             CallInst::Create(StoreIntegerFn, Args.begin(), Args.end(), "", I);
           } else if(InstType->isFloatingPoint()) {
-            Args[0] = ConstantInt::get(Type::Int32Ty, invariantTypeIndex);
-            Args[1] = ConstantInt::get(Type::Int32Ty, nInvariants++);
-            Args[2] = CastInst::createFPCast(Val, Type::DoubleTy, "st.cast", I);
+            Args[0] = ConstantInt::get(Type::getInt32Ty(C), invariantTypeIndex);
+            Args[1] = ConstantInt::get(Type::getInt32Ty(C), nInvariants++);
+            Args[2] = CastInst::CreateFPCast(Val, Type::getDoubleTy(C), "st.cast", I);
             CallInst::Create(StoreDoubleFn, Args.begin(), Args.end(), "", I);
           } else if(isa<PointerType>(InstType)) {
-            Args[0] = ConstantInt::get(Type::Int32Ty, invariantTypeIndex);
-            Args[1] = ConstantInt::get(Type::Int32Ty, nInvariants++);
-            Args[2] = CastInst::createPointerCast(Val, PointerType::getUnqual(Type::Int32Ty), "st.cast", I);
+            Args[0] = ConstantInt::get(Type::getInt32Ty(C), invariantTypeIndex);
+            Args[1] = ConstantInt::get(Type::getInt32Ty(C), nInvariants++);
+            Args[2] = CastInst::CreatePointerCast(Val, PointerType::getUnqual(Type::getInt32Ty(C)), "st.cast", I);
             CallInst::Create(StorePointerFn, Args.begin(), Args.end(), "", I);
           } else {
-            Args[0] = ConstantInt::get(Type::Int32Ty, invariantTypeIndex);
-            Args[1] = ConstantInt::get(Type::Int32Ty, nInvariants++);
-            Args[2] = ConstantInt::get(Type::Int32Ty, 0);
+            Args[0] = ConstantInt::get(Type::getInt32Ty(C), invariantTypeIndex);
+            Args[1] = ConstantInt::get(Type::getInt32Ty(C), nInvariants++);
+            Args[2] = ConstantInt::get(Type::getInt32Ty(C), 0);
             CallInst::Create(StoreUintFn, Args.begin(), Args.end(), "", I);
           }
 

@@ -47,6 +47,8 @@ bool InvLoopCountInstrumenter::runOnModule(Module &M) {
   cerr << "instrument: --- Loop Count Invariant ---\n";
 
   Function *Main = M.getFunction("main");
+  LLVMContext &C = M.getContext();
+  
   if (Main == 0) {
     cerr << "WARNING: cannot insert loop count instrumentation into a module"
          << " with no main function!\n";
@@ -55,15 +57,15 @@ bool InvLoopCountInstrumenter::runOnModule(Module &M) {
 
   // Add library function prototypes
   Constant *loopInitFn = M.getOrInsertFunction("_handleInvariantChangeUInt", 
-                              Type::VoidTy,   // returns void
-                              Type::Int32Ty,  // InvariantTypeIndex
-                              Type::Int32Ty,  // LoopIndex
-                              Type::Int32Ty,  // Value
+                              Type::getVoidTy(C),   // returns void
+                              Type::getInt32Ty(C),  // InvariantTypeIndex
+                              Type::getInt32Ty(C),  // LoopIndex
+                              Type::getInt32Ty(C),  // Value
                               NULL);
   Constant *loopIncrFn = M.getOrInsertFunction("_handleInvariantIncrement", 
-                              Type::VoidTy,   // returns void
-                              Type::Int32Ty,  // InvariantTypeIndex
-                              Type::Int32Ty,  // LoopIndex
+                              Type::getVoidTy(C),   // returns void
+                              Type::getInt32Ty(C),  // InvariantTypeIndex
+                              Type::getInt32Ty(C),  // LoopIndex
                               NULL);
 
   unsigned int invariantTypeIndex = IndexManager::getInvariantTypeIndex();
@@ -107,9 +109,9 @@ void InvLoopCountInstrumenter::instrumentLoop(Loop *loop, Constant *loopInitFn, 
     BasicBlock::iterator initPos = loop->getLoopPreheader()->begin();
     while (isa<AllocaInst>(initPos)) ++initPos;
     std::vector<Value*> Args(3);
-    Args[0] = ConstantInt::get(Type::Int32Ty, invariantTypeIndex);
-    Args[1] = ConstantInt::get(Type::Int32Ty, *loopIndex);
-    Args[2] = ConstantInt::get(Type::Int32Ty, 0);
+    Args[0] = ConstantInt::get(Type::getInt32Ty(loop->getLoopPreheader()->getContext()), invariantTypeIndex);
+    Args[1] = ConstantInt::get(Type::getInt32Ty(loop->getLoopPreheader()->getContext()), *loopIndex);
+    Args[2] = ConstantInt::get(Type::getInt32Ty(loop->getLoopPreheader()->getContext()), 0);
     CallInst::Create(loopInitFn, Args.begin(), Args.end(), "", initPos);
 
     // increment counter in first loop block
@@ -117,8 +119,8 @@ void InvLoopCountInstrumenter::instrumentLoop(Loop *loop, Constant *loopInitFn, 
     BasicBlock::iterator incrPos = header->begin();
     while (isa<AllocaInst>(incrPos)) ++incrPos;
     std::vector<Value*> Args2(2);
-    Args2[0] = ConstantInt::get(Type::Int32Ty, invariantTypeIndex);
-    Args2[1] = ConstantInt::get(Type::Int32Ty, *loopIndex);
+    Args2[0] = ConstantInt::get(Type::getInt32Ty(header->getContext()), invariantTypeIndex);
+    Args2[1] = ConstantInt::get(Type::getInt32Ty(header->getContext()), *loopIndex);
     CallInst::Create(loopIncrFn, Args2.begin(), Args2.end(), "", incrPos);
 
     (*loopIndex)++;

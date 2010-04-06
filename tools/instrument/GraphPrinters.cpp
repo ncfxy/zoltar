@@ -49,7 +49,8 @@ namespace llvm {
       return "Call Graph";
     }
 
-    static std::string getNodeLabel(CallGraphNode *Node, CallGraph *Graph) {
+    static std::string getNodeLabel(CallGraphNode *Node, CallGraph *Graph,
+                                    bool ShortNames) {
       if (Node->getFunction())
         return ((Value*)Node->getFunction())->getName();
       else
@@ -62,7 +63,7 @@ namespace llvm {
 namespace {
   struct CallGraphPrinter : public ModulePass {
     static char ID; // Pass ID, replacement for typeid
-    CallGraphPrinter() : ModulePass((intptr_t)&ID) {}
+    CallGraphPrinter() : ModulePass(&ID) {}
 
     virtual bool runOnModule(Module &M) {
       WriteGraphToFile(std::cerr, "callgraph", &getAnalysis<CallGraph>());
@@ -91,7 +92,7 @@ namespace {
   class DomInfoPrinter : public FunctionPass {
   public:
     static char ID; // Pass identification, replacement for typeid
-    DomInfoPrinter() : FunctionPass((intptr_t)&ID) {}
+    DomInfoPrinter() : FunctionPass(&ID) {}
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();

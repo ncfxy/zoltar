@@ -10,7 +10,7 @@ LEVEL = ../..
 TOOLNAME = xzoltar
 REQUIRES_EH := 1
 
-USEDLIBS = common sfl
+USEDLIBS = common.a sfl.a
 
 LDFLAGS += `pkg-config --libs gtk+-2.0`
 CFLAGS += -g `pkg-config --cflags gtk+-2.0`

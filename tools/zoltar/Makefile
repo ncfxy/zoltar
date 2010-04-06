@@ -12,9 +12,9 @@ REQUIRES_EH := 1
 
 #LDFLAGS += ../../Debug/lib/Delft.o
 #LDFLAGS += -lanalyzer
-USEDLIBS = common sfl
+USEDLIBS = common.a sfl.a
 
-LDFLAGS += ../../Release/lib/libinstrument.a -lmenu -lncursesw
+LDFLAGS += -lmenu -lncursesw
 CFLAGS += -g
 
 include $(LEVEL)/Makefile.common

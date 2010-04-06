@@ -44,6 +44,8 @@ bool SpBasicBlockInstrumenter::runOnModule(Module &M) {
   cerr << "instrument: --- Basic Block Spectrum ---\n";
 
   Function *Main = M.getFunction("main");
+  LLVMContext &C = M.getContext();
+  
   if (Main == 0) {
     cerr << "WARNING: cannot insert block instrumentation into a module"
          << " with no main function!\n";
@@ -52,9 +54,9 @@ bool SpBasicBlockInstrumenter::runOnModule(Module &M) {
 
   // Add library function prototype
   Constant *SpFn = M.getOrInsertFunction("_updateSpectrum", 
-                          Type::VoidTy, 
-                          Type::Int32Ty,  // spectrum index
-                          Type::Int32Ty,  // component index
+                          Type::getVoidTy(C), 
+                          Type::getInt32Ty(C),  // spectrum index
+                          Type::getInt32Ty(C),  // component index
                           NULL);
 
 
@@ -100,8 +102,8 @@ bool SpBasicBlockInstrumenter::runOnModule(Module &M) {
   
           // add call to lib function
           std::vector<Value*> Args(2);
-          Args[0] = ConstantInt::get(Type::Int32Ty, spectrumIndex);
-          Args[1] = ConstantInt::get(Type::Int32Ty, nComponents++);
+          Args[0] = ConstantInt::get(Type::getInt32Ty(C), spectrumIndex);
+          Args[1] = ConstantInt::get(Type::getInt32Ty(C), nComponents++);
           
           CallInst::Create(SpFn, Args.begin(), Args.end(), "", I);
 

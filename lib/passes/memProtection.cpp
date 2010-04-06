@@ -22,7 +22,7 @@ namespace {
   class MemProtectionInstrumenter2 : public ModulePass {
     bool runOnModule(Module &M);
     Constant *getOrInsertGlobal(Module &M, const std::string &Name, const Type *Ty);
-    void instrumentStore(BasicBlock::iterator Inst, Value *loc, Value *len);
+    void instrumentStore(LLVMContext &C, BasicBlock::iterator Inst, Value *loc, Value *len);
     Constant *memstart, *memend, *FailFn;
     TargetData *targetData;
   public:
@@ -38,8 +38,10 @@ RPmemprotection("memprotection", "Instrument stores for memory protection");
 bool MemProtectionInstrumenter2::runOnModule(Module &M) {
 
   cerr << "instrument: --- Memory Protection ---\n";
-
+  
   Function *Main = M.getFunction("main");
+  LLVMContext &C = M.getContext();
+
   if (Main == 0) {
     cerr << "WARNING: cannot insert block instrumentation into a module"
          << " with no main function!\n";
@@ -48,12 +50,12 @@ bool MemProtectionInstrumenter2::runOnModule(Module &M) {
 
   // Add library function prototypes
   FailFn = M.getOrInsertFunction("_handleMemFail", 
-                              Type::VoidTy,   // returns void
-                              Type::Int32Ty,  // loc
-                              Type::Int32Ty,  // size
+                              Type::getVoidTy(C),   // returns void
+                              Type::getInt32Ty(C),  // loc
+                              Type::getInt32Ty(C),  // size
                               NULL);
-  memstart = getOrInsertGlobal(M, "_instrumentationInfo", PointerType::getUnqual(Type::Int8Ty));
-  memend = getOrInsertGlobal(M, "_instrumentationInfoEnd", PointerType::getUnqual(Type::Int8Ty));
+  memstart = getOrInsertGlobal(M, "_instrumentationInfo", PointerType::getUnqual(Type::getInt8Ty(C)));
+  memend = getOrInsertGlobal(M, "_instrumentationInfoEnd", PointerType::getUnqual(Type::getInt8Ty(C)));
 
   // Instrument all store and memory intrinsic instructions
   unsigned int instrumentedStores = 0;
@@ -83,7 +85,7 @@ bool MemProtectionInstrumenter2::runOnModule(Module &M) {
                 Loc = ST.getOperand(1);
                 Value *Val = ST.getOperand(0);
                 const Type *InstType = Val->getType();
-                Len = ConstantInt::get(Type::Int32Ty, targetData->getTypeStoreSize(InstType));
+                Len = ConstantInt::get(Type::getInt32Ty(C), targetData->getTypeStoreSize(InstType));
               } else if (isa<MemCpyInst>(*I)) {
                 MemCpyInst &ST = cast<MemCpyInst>(*I);
                 Loc = ST.getRawDest();
@@ -98,7 +100,7 @@ bool MemProtectionInstrumenter2::runOnModule(Module &M) {
                 Len = ST.getLength();
               }
 
-              instrumentStore(I, Loc, Len);
+              instrumentStore(C, I, Loc, Len);
 
               nStores++;
               restart = true;
@@ -124,9 +126,9 @@ bool MemProtectionInstrumenter2::runOnModule(Module &M) {
       for (BasicBlock::iterator Inst = BB->begin(); Inst != BB->end(); Inst++) {
         if(isa<StoreInst>(*Inst)) {
           StoreInst &ST = cast<StoreInst>(*Inst);
-          //Value *Loc = CastInst::createPointerCast(ST.getOperand(1), Type::Int32Ty, "st.cast", Inst);
+          //Value *Loc = CastInst::createPointerCast(ST.getOperand(1), Type::getInt32Ty(C), "st.cast", Inst);
           Value *LocTmp = ST.getOperand(1);
-          Value *Loc = CastInst::createPointerCast(LocTmp, Type::Int32Ty, "st.cast", Inst);
+          Value *Loc = CastInst::createPointerCast(LocTmp, Type::getInt32Ty(C), "st.cast", Inst);
           Value *Val = ST.getOperand(0);
           const Type *InstType = Val->getType();
           int tsz = targetData.getTypeStoreSize(InstType);
@@ -142,7 +144,7 @@ bool MemProtectionInstrumenter2::runOnModule(Module &M) {
           //load memend
           Value *MemE = CastInst::createPointerCast(
             new LoadInst(memend, "loadMemEnd", &BB->back()),
-            Type::Int32Ty, "st.cast", &BB->back());
+            Type::getInt32Ty(C), "st.cast", &BB->back());
           //cmp loc>memend
           Value *VsGtMe = new ICmpInst(ICmpInst::ICMP_UGT, 
             Loc, 
@@ -156,11 +158,11 @@ bool MemProtectionInstrumenter2::runOnModule(Module &M) {
           //load memstart
           Value *MemS = CastInst::createPointerCast(
             new LoadInst(memstart, "loadMemStart", &bbCmp2->back()),
-            Type::Int32Ty, "st.cast", &bbCmp2->back());
+            Type::getInt32Ty(C), "st.cast", &bbCmp2->back());
           //compute end=loc+tsz
           Value *ValE = BinaryOperator::Create(Instruction::Add, 
             Loc,
-            ConstantInt::get(Type::Int32Ty, tsz), "valE", &bbCmp2->back());
+            ConstantInt::get(Type::getInt32Ty(C), tsz), "valE", &bbCmp2->back());
           //cmp end<memstart
           Value *VeLtMs = new ICmpInst(ICmpInst::ICMP_ULT, 
             ValE, 
@@ -173,7 +175,7 @@ bool MemProtectionInstrumenter2::runOnModule(Module &M) {
           //BB Call:
           std::vector<Value*> Args(2);
           Args[0] = Loc;
-          Args[1] = ConstantInt::get(Type::Int32Ty, tsz);
+          Args[1] = ConstantInt::get(Type::getInt32Ty(C), tsz);
           CallInst::Create(FailFn, Args.begin(), Args.end(), "", &bbCall->back());
 
 
@@ -186,8 +188,8 @@ bool MemProtectionInstrumenter2::runOnModule(Module &M) {
           Value *Loc = ST.getRawDest();
           Value *Len = ST.getLength();
           std::vector<Value*> Args(2);
-          Args[0] = CastInst::createPointerCast(Loc, Type::Int32Ty, "st.cast", Inst);
-          Args[1] = CastInst::createIntegerCast(Len, Type::Int32Ty, true, "st.cast", Inst);
+          Args[0] = CastInst::createPointerCast(Loc, Type::getInt32Ty(C), "st.cast", Inst);
+          Args[1] = CastInst::createIntegerCast(Len, Type::getInt32Ty(C), true, "st.cast", Inst);
           CallInst::Create(FailFn, Args.begin(), Args.end(), "", Inst);
           count++;
         } else if (isa<MemMoveInst>(*Inst)) {
@@ -195,8 +197,8 @@ bool MemProtectionInstrumenter2::runOnModule(Module &M) {
           Value *Loc = ST.getRawDest();
           Value *Len = ST.getLength();
           std::vector<Value*> Args(2);
-          Args[0] = CastInst::createPointerCast(Loc, Type::Int32Ty, "st.cast", Inst);
-          Args[1] = CastInst::createIntegerCast(Len, Type::Int32Ty, true, "st.cast", Inst);
+          Args[0] = CastInst::createPointerCast(Loc, Type::getInt32Ty(C), "st.cast", Inst);
+          Args[1] = CastInst::createIntegerCast(Len, Type::getInt32Ty(C), true, "st.cast", Inst);
           CallInst::Create(FailFn, Args.begin(), Args.end(), "", Inst);
           count++;
         } else if (isa<MemSetInst>(*Inst)) {
@@ -204,8 +206,8 @@ bool MemProtectionInstrumenter2::runOnModule(Module &M) {
           Value *Loc = ST.getRawDest();
           Value *Len = ST.getLength();
           std::vector<Value*> Args(2);
-          Args[0] = CastInst::createPointerCast(Loc, Type::Int32Ty, "st.cast", Inst);
-          Args[1] = CastInst::createIntegerCast(Len, Type::Int32Ty, true, "st.cast", Inst);
+          Args[0] = CastInst::createPointerCast(Loc, Type::getInt32Ty(C), "st.cast", Inst);
+          Args[1] = CastInst::createIntegerCast(Len, Type::getInt32Ty(C), true, "st.cast", Inst);
           CallInst::Create(FailFn, Args.begin(), Args.end(), "", Inst);
           count++;
         }
@@ -219,13 +221,10 @@ bool MemProtectionInstrumenter2::runOnModule(Module &M) {
 }
 
 Constant *MemProtectionInstrumenter2::getOrInsertGlobal(Module &M, const std::string &Name, const Type *Ty) {
-  ValueSymbolTable &SymTab = M.getValueSymbolTable();
-  
-  GlobalVariable *GV = dyn_cast_or_null<GlobalVariable>(SymTab.lookup(Name));
+  GlobalVariable *GV = M.getGlobalVariable(Name);
   if(GV==0) {
-    GlobalVariable *New = new GlobalVariable(Ty, false, GlobalVariable::ExternalLinkage, 0, Name);
-    M.getGlobalList().push_back(New);
-    return New;
+    GlobalVariable *New = new GlobalVariable(M, Ty, false, GlobalVariable::ExternalLinkage, 0, Name);
+		return New;
   }
   if(GV->getType() != PointerType::getUnqual(Ty)) {
     return ConstantExpr::getBitCast(GV, PointerType::getUnqual(Ty));
@@ -233,9 +232,9 @@ Constant *MemProtectionInstrumenter2::getOrInsertGlobal(Module &M, const std::st
   return GV;
 }
 
-void MemProtectionInstrumenter2::instrumentStore(BasicBlock::iterator Inst, Value* loc, Value *len) {
+void MemProtectionInstrumenter2::instrumentStore(LLVMContext &C, BasicBlock::iterator Inst, Value* loc, Value *len) {
 
-  Value *Loc = CastInst::createPointerCast(loc, Type::Int32Ty, "st.cast", Inst);
+  Value *Loc = CastInst::CreatePointerCast(loc, Type::getInt32Ty(C), "st.cast", Inst);
 
   // create three basic blocks for branch targets
   BasicBlock *BB = Inst->getParent();
@@ -245,24 +244,24 @@ void MemProtectionInstrumenter2::instrumentStore(BasicBlock::iterator Inst, Valu
 
   // remainder of BB:
   //  load memend
-  Value *MemE = CastInst::createPointerCast(new LoadInst(memend, "loadMemEnd", &BB->back()),
-                                            Type::Int32Ty, 
+  Value *MemE = CastInst::CreatePointerCast(new LoadInst(memend, "loadMemEnd", &BB->back()),
+                                            Type::getInt32Ty(C), 
                                             "st.cast", 
                                             &BB->back());
   //  cmp loc>memend
-  Value *VsGtMe = new ICmpInst(ICmpInst::ICMP_UGT, 
+  Value *VsGtMe = new ICmpInst(&BB->back(),
+                               ICmpInst::ICMP_UGT, 
                                Loc, 
                                MemE,
-                               "VsGtMe", 
-                               &BB->back());
+                               "VsGtMe");
   //  if true branch to STORE
   BranchInst::Create(bbStore, bbCmp2, VsGtMe, &BB->back());
   BB->back().eraseFromParent();
 
   // BB CMP2:
   //  load memstart
-  Value *MemS = CastInst::createPointerCast(new LoadInst(memstart, "loadMemStart", &bbCmp2->back()),
-                                            Type::Int32Ty, 
+  Value *MemS = CastInst::CreatePointerCast(new LoadInst(memstart, "loadMemStart", &bbCmp2->back()),
+                                            Type::getInt32Ty(C), 
                                             "st.cast", 
                                             &bbCmp2->back());
   //  compute end=loc+tsz
@@ -270,10 +269,11 @@ void MemProtectionInstrumenter2::instrumentStore(BasicBlock::iterator Inst, Valu
                                        Loc,
                                        len, "valE", &bbCmp2->back());
   //  cmp end<memstart
-  Value *VeLtMs = new ICmpInst(ICmpInst::ICMP_ULT, 
+  Value *VeLtMs = new ICmpInst(&bbCmp2->back(),
+                               ICmpInst::ICMP_ULT, 
                                ValE, 
                                MemS,
-                              "VeLtMs", &bbCmp2->back());
+                              "VeLtMs");
   //  if true branch to STORE
   BranchInst::Create(bbStore, bbCall, VeLtMs, &bbCmp2->back());
   bbCmp2->back().eraseFromParent();

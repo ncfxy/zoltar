@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/ModuleProvider.h"
 #include "llvm/PassManager.h"
@@ -28,12 +29,11 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PluginLoader.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/StandardPasses.h"
 #include "llvm/Support/SystemUtils.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/LinkAllPasses.h"
 #include "llvm/LinkAllVMCore.h"
-#include <iostream>
-#include <fstream>
 #include <memory>
 #include <algorithm>
 
@@ -50,7 +50,7 @@ PassList(cl::desc("Optimizations available:"));
 // Other command line options...
 //
 static cl::opt<std::string>
-InputFilename(cl::Positional, cl::desc("<input bitcode file>"), 
+InputFilename(cl::Positional, cl::desc("<input bitcode file>"),
     cl::init("-"), cl::value_desc("filename"));
 
 static cl::opt<std::string>
@@ -80,13 +80,21 @@ StripDebug("strip-debug",
 static cl::opt<bool>
 DisableInline("disable-inlining", cl::desc("Do not run the inliner pass"));
 
-static cl::opt<bool> 
-DisableOptimizations("disable-opt", 
+static cl::opt<bool>
+DisableOptimizations("disable-opt",
                      cl::desc("Do not run any optimization passes"));
 
 static cl::opt<bool>
-StandardCompileOpts("std-compile-opts", 
+DisableInternalize("disable-internalize",
+                   cl::desc("Do not mark all symbols as internal"));
+
+static cl::opt<bool>
+StandardCompileOpts("std-compile-opts",
                    cl::desc("Include the standard compile time optimizations"));
+
+static cl::opt<bool>
+StandardLinkOpts("std-link-opts",
+                 cl::desc("Include the standard link time optimizations"));
 
 static cl::opt<bool>
 OptLevelO1("O1",
@@ -102,7 +110,8 @@ OptLevelO3("O3",
 
 static cl::opt<bool>
 UnitAtATime("funit-at-a-time",
-            cl::desc("Enable IPO. This is same as llvm-gcc's -funit-at-a-time"));
+            cl::desc("Enable IPO. This is same as llvm-gcc's -funit-at-a-time"),
+	    cl::init(true));
 
 static cl::opt<bool>
 DisableSimplifyLibCalls("disable-simplify-libcalls",
@@ -123,23 +132,26 @@ namespace {
 struct CallGraphSCCPassPrinter : public CallGraphSCCPass {
   static char ID;
   const PassInfo *PassToPrint;
-  CallGraphSCCPassPrinter(const PassInfo *PI) : 
-    CallGraphSCCPass((intptr_t)&ID), PassToPrint(PI) {}
+  CallGraphSCCPassPrinter(const PassInfo *PI) :
+    CallGraphSCCPass(&ID), PassToPrint(PI) {}
 
   virtual bool runOnSCC(const std::vector<CallGraphNode *>&SCC) {
     if (!Quiet) {
-      cout << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
+      outs() << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
 
       for (unsigned i = 0, e = SCC.size(); i != e; ++i) {
         Function *F = SCC[i]->getFunction();
-        if (F) 
+        if (F) {
+          outs().flush();
           getAnalysisID<Pass>(PassToPrint).print(cout, F->getParent());
+          cout << std::flush;
+        }
       }
     }
     // Get and print pass...
     return false;
   }
-  
+
   virtual const char *getPassName() const { return "'Pass' Printer"; }
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
@@ -153,13 +165,15 @@ char CallGraphSCCPassPrinter::ID = 0;
 struct ModulePassPrinter : public ModulePass {
   static char ID;
   const PassInfo *PassToPrint;
-  ModulePassPrinter(const PassInfo *PI) : ModulePass((intptr_t)&ID),
+  ModulePassPrinter(const PassInfo *PI) : ModulePass(&ID),
                                           PassToPrint(PI) {}
 
   virtual bool runOnModule(Module &M) {
     if (!Quiet) {
-      cout << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
+      outs() << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
+      outs().flush();
       getAnalysisID<Pass>(PassToPrint).print(cout, &M);
+      cout << std::flush;
     }
 
     // Get and print pass...
@@ -178,16 +192,18 @@ char ModulePassPrinter::ID = 0;
 struct FunctionPassPrinter : public FunctionPass {
   const PassInfo *PassToPrint;
   static char ID;
-  FunctionPassPrinter(const PassInfo *PI) : FunctionPass((intptr_t)&ID),
+  FunctionPassPrinter(const PassInfo *PI) : FunctionPass(&ID),
                                             PassToPrint(PI) {}
 
   virtual bool runOnFunction(Function &F) {
-    if (!Quiet) { 
-      cout << "Printing analysis '" << PassToPrint->getPassName()
-           << "' for function '" << F.getName() << "':\n";
+    if (!Quiet) {
+      outs() << "Printing analysis '" << PassToPrint->getPassName()
+              << "' for function '" << F.getName() << "':\n";
     }
     // Get and print pass...
+    outs().flush();
     getAnalysisID<Pass>(PassToPrint).print(cout, F.getParent());
+    cout << std::flush;
     return false;
   }
 
@@ -204,19 +220,21 @@ char FunctionPassPrinter::ID = 0;
 struct LoopPassPrinter : public LoopPass {
   static char ID;
   const PassInfo *PassToPrint;
-  LoopPassPrinter(const PassInfo *PI) : 
-    LoopPass((intptr_t)&ID), PassToPrint(PI) {}
+  LoopPassPrinter(const PassInfo *PI) :
+    LoopPass(&ID), PassToPrint(PI) {}
 
   virtual bool runOnLoop(Loop *L, LPPassManager &LPM) {
     if (!Quiet) {
-      cout << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
-      getAnalysisID<Pass>(PassToPrint).print(cout, 
+      outs() << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
+      outs().flush();
+      getAnalysisID<Pass>(PassToPrint).print(cout,
                                   L->getHeader()->getParent()->getParent());
+      cout << std::flush;
     }
     // Get and print pass...
     return false;
   }
-  
+
   virtual const char *getPassName() const { return "'Pass' Printer"; }
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
@@ -230,17 +248,19 @@ char LoopPassPrinter::ID = 0;
 struct BasicBlockPassPrinter : public BasicBlockPass {
   const PassInfo *PassToPrint;
   static char ID;
-  BasicBlockPassPrinter(const PassInfo *PI) 
-    : BasicBlockPass((intptr_t)&ID), PassToPrint(PI) {}
+  BasicBlockPassPrinter(const PassInfo *PI)
+    : BasicBlockPass(&ID), PassToPrint(PI) {}
 
   virtual bool runOnBasicBlock(BasicBlock &BB) {
     if (!Quiet) {
-      cout << "Printing Analysis info for BasicBlock '" << BB.getName()
-           << "': Pass " << PassToPrint->getPassName() << ":\n";
+      outs() << "Printing Analysis info for BasicBlock '" << BB.getName()
+             << "': Pass " << PassToPrint->getPassName() << ":\n";
     }
 
     // Get and print pass...
+    outs().flush();
     getAnalysisID<Pass>(PassToPrint).print(cout, BB.getParent()->getParent());
+    cout << std::flush;
     return false;
   }
 
@@ -261,86 +281,23 @@ inline void addPass(PassManager &PM, Pass *P) {
   if (VerifyEach) PM.add(createVerifierPass());
 }
 
-/// AddOptimizationPasses - This routine adds optimization passes 
-/// based on selected optimization level, OptLevel. This routine 
+/// AddOptimizationPasses - This routine adds optimization passes
+/// based on selected optimization level, OptLevel. This routine
 /// duplicates llvm-gcc behaviour.
 ///
 /// OptLevel - Optimization Level
-  void AddOptimizationPasses(PassManager &MPM, FunctionPassManager &FPM,
-                             unsigned OptLevel) {
+void AddOptimizationPasses(PassManager &MPM, FunctionPassManager &FPM,
+                           unsigned OptLevel) {
+  createStandardFunctionPasses(&FPM, OptLevel);
 
-  if (OptLevel == 0) 
-    return;
-
-  FPM.add(createCFGSimplificationPass());
-  if (OptLevel == 1)
-    FPM.add(createPromoteMemoryToRegisterPass());
-  else
-    FPM.add(createScalarReplAggregatesPass());
-  FPM.add(createInstructionCombiningPass());
-
-  if (UnitAtATime)
-    MPM.add(createRaiseAllocationsPass());      // call %malloc -> malloc inst
-  MPM.add(createCFGSimplificationPass());       // Clean up disgusting code
-  MPM.add(createPromoteMemoryToRegisterPass()); // Kill useless allocas
-  if (UnitAtATime) {
-    MPM.add(createGlobalOptimizerPass());       // OptLevel out global vars
-    MPM.add(createGlobalDCEPass());             // Remove unused fns and globs
-    MPM.add(createIPConstantPropagationPass()); // IP Constant Propagation
-    MPM.add(createDeadArgEliminationPass());    // Dead argument elimination
-  }
-  MPM.add(createInstructionCombiningPass());    // Clean up after IPCP & DAE
-  MPM.add(createCFGSimplificationPass());       // Clean up after IPCP & DAE
-  if (UnitAtATime) {
-    MPM.add(createPruneEHPass());               // Remove dead EH info
-    MPM.add(createAddReadAttrsPass());          // Set readonly/readnone attrs
-  }
-  if (OptLevel > 1)
-    MPM.add(createFunctionInliningPass());      // Inline small functions
-  if (OptLevel > 2)
-    MPM.add(createArgumentPromotionPass());   // Scalarize uninlined fn args
-  if (!DisableSimplifyLibCalls)
-    MPM.add(createSimplifyLibCallsPass());    // Library Call Optimizations
-  MPM.add(createInstructionCombiningPass());  // Cleanup for scalarrepl.
-  MPM.add(createJumpThreadingPass());         // Thread jumps.
-  MPM.add(createCFGSimplificationPass());     // Merge & remove BBs
-  MPM.add(createScalarReplAggregatesPass());  // Break up aggregate allocas
-  MPM.add(createInstructionCombiningPass());  // Combine silly seq's
-  MPM.add(createCondPropagationPass());       // Propagate conditionals
-  MPM.add(createTailCallEliminationPass());   // Eliminate tail calls
-  MPM.add(createCFGSimplificationPass());     // Merge & remove BBs
-  MPM.add(createReassociatePass());           // Reassociate expressions
-  MPM.add(createLoopRotatePass());            // Rotate Loop
-  MPM.add(createLICMPass());                  // Hoist loop invariants
-  MPM.add(createLoopUnswitchPass());
-  MPM.add(createLoopIndexSplitPass());        // Split loop index
-  MPM.add(createInstructionCombiningPass());  
-  MPM.add(createIndVarSimplifyPass());        // Canonicalize indvars
-  MPM.add(createLoopDeletionPass());          // Delete dead loops
-  if (OptLevel > 1)
-    MPM.add(createLoopUnrollPass());          // Unroll small loops
-  MPM.add(createInstructionCombiningPass());  // Clean up after the unroller
-  MPM.add(createGVNPass());                   // Remove redundancies
-  MPM.add(createMemCpyOptPass());             // Remove memcpy / form memset
-  MPM.add(createSCCPPass());                  // Constant prop with SCCP
-  
-  // Run instcombine after redundancy elimination to exploit opportunities
-  // opened up by them.
-  MPM.add(createInstructionCombiningPass());
-  MPM.add(createCondPropagationPass());       // Propagate conditionals
-  MPM.add(createDeadStoreEliminationPass());  // Delete dead stores
-  MPM.add(createAggressiveDCEPass());   // Delete dead instructions
-  MPM.add(createCFGSimplificationPass());     // Merge & remove BBs
-  
-  if (UnitAtATime) {
-    MPM.add(createStripDeadPrototypesPass());   // Get rid of dead prototypes
-    MPM.add(createDeadTypeEliminationPass());   // Eliminate dead types
-  }
-  
-  if (OptLevel > 1 && UnitAtATime)
-    MPM.add(createConstantMergePass());       // Merge dup global constants 
-  
-  return;
+  llvm::Pass *InliningPass = OptLevel > 1 ? createFunctionInliningPass() : 0;
+  createStandardModulePasses(&MPM, OptLevel,
+                             /*OptimizeSize=*/ false,
+                             UnitAtATime,
+                             /*UnrollLoops=*/ OptLevel > 1,
+                             !DisableSimplifyLibCalls,
+                             /*HaveExceptions=*/ true,
+                             InliningPass);
 }
 
 void AddStandardCompilePasses(PassManager &PM) {
@@ -354,59 +311,30 @@ void AddStandardCompilePasses(PassManager &PM) {
 
   if (DisableOptimizations) return;
 
-  addPass(PM, createRaiseAllocationsPass());     // call %malloc -> malloc inst
-  addPass(PM, createCFGSimplificationPass());    // Clean up disgusting code
-  addPass(PM, createPromoteMemoryToRegisterPass());// Kill useless allocas
-  addPass(PM, createGlobalOptimizerPass());      // Optimize out global vars
-  addPass(PM, createGlobalDCEPass());            // Remove unused fns and globs
-  addPass(PM, createIPConstantPropagationPass());// IP Constant Propagation
-  addPass(PM, createDeadArgEliminationPass());   // Dead argument elimination
-  addPass(PM, createInstructionCombiningPass()); // Clean up after IPCP & DAE
-  addPass(PM, createCFGSimplificationPass());    // Clean up after IPCP & DAE
+  llvm::Pass *InliningPass = !DisableInline ? createFunctionInliningPass() : 0;
 
-  addPass(PM, createPruneEHPass());              // Remove dead EH info
-  addPass(PM, createAddReadAttrsPass());         // Set readonly/readnone attrs
+  // -std-compile-opts adds the same module passes as -O3.
+  createStandardModulePasses(&PM, 3,
+                             /*OptimizeSize=*/ false,
+                             /*UnitAtATime=*/ true,
+                             /*UnrollLoops=*/ true,
+                             /*SimplifyLibCalls=*/ true,
+                             /*HaveExceptions=*/ true,
+                             InliningPass);
+}
 
-  if (!DisableInline)
-    addPass(PM, createFunctionInliningPass());   // Inline small functions
-  addPass(PM, createArgumentPromotionPass());    // Scalarize uninlined fn args
+void AddStandardLinkPasses(PassManager &PM) {
+  PM.add(createVerifierPass());                  // Verify that input is correct
 
-  addPass(PM, createSimplifyLibCallsPass());     // Library Call Optimizations
-  addPass(PM, createInstructionCombiningPass()); // Cleanup for scalarrepl.
-  addPass(PM, createJumpThreadingPass());        // Thread jumps.
-  addPass(PM, createCFGSimplificationPass());    // Merge & remove BBs
-  addPass(PM, createScalarReplAggregatesPass()); // Break up aggregate allocas
-  addPass(PM, createInstructionCombiningPass()); // Combine silly seq's
-  addPass(PM, createCondPropagationPass());      // Propagate conditionals
+  // If the -strip-debug command line option was specified, do it.
+  if (StripDebug)
+    addPass(PM, createStripSymbolsPass(true));
 
-  addPass(PM, createTailCallEliminationPass());  // Eliminate tail calls
-  addPass(PM, createCFGSimplificationPass());    // Merge & remove BBs
-  addPass(PM, createReassociatePass());          // Reassociate expressions
-  addPass(PM, createLoopRotatePass());
-  addPass(PM, createLICMPass());                 // Hoist loop invariants
-  addPass(PM, createLoopUnswitchPass());         // Unswitch loops.
-  addPass(PM, createLoopIndexSplitPass());       // Index split loops.
-  // FIXME : Removing instcombine causes nestedloop regression.
-  addPass(PM, createInstructionCombiningPass());
-  addPass(PM, createIndVarSimplifyPass());       // Canonicalize indvars
-  addPass(PM, createLoopDeletionPass());         // Delete dead loops
-  addPass(PM, createLoopUnrollPass());           // Unroll small loops
-  addPass(PM, createInstructionCombiningPass()); // Clean up after the unroller
-  addPass(PM, createGVNPass());                  // Remove redundancies
-  addPass(PM, createMemCpyOptPass());            // Remove memcpy / form memset
-  addPass(PM, createSCCPPass());                 // Constant prop with SCCP
+  if (DisableOptimizations) return;
 
-  // Run instcombine after redundancy elimination to exploit opportunities
-  // opened up by them.
-  addPass(PM, createInstructionCombiningPass());
-  addPass(PM, createCondPropagationPass());      // Propagate conditionals
-
-  addPass(PM, createDeadStoreEliminationPass()); // Delete dead stores
-  addPass(PM, createAggressiveDCEPass());        // Delete dead instructions
-  addPass(PM, createCFGSimplificationPass());    // Merge & remove BBs
-  addPass(PM, createStripDeadPrototypesPass());  // Get rid of dead prototypes
-  addPass(PM, createDeadTypeEliminationPass());  // Eliminate dead types
-  addPass(PM, createConstantMergePass());        // Merge dup global constants
+  createStandardLTOPasses(&PM, /*Internalize=*/ !DisableInternalize,
+                          /*RunInliner=*/ !DisableInline,
+                          /*VerifyEach=*/ VerifyEach);
 }
 
 } // anonymous namespace
@@ -417,6 +345,7 @@ void AddStandardCompilePasses(PassManager &PM) {
 //
 int main(int argc, char **argv) {
   llvm_shutdown_obj X;  // Call llvm_shutdown() on exit.
+  LLVMContext &Context = getGlobalContext();
   try {
     cl::ParseCommandLineOptions(argc, argv,
       "llvm .bc -> .bc modular optimizer and analysis printer\n");
@@ -432,36 +361,31 @@ int main(int argc, char **argv) {
     std::auto_ptr<Module> M;
     if (MemoryBuffer *Buffer
           = MemoryBuffer::getFileOrSTDIN(InputFilename, &ErrorMessage)) {
-      M.reset(ParseBitcodeFile(Buffer, &ErrorMessage));
+      M.reset(ParseBitcodeFile(Buffer, Context, &ErrorMessage));
       delete Buffer;
     }
-    
+
     if (M.get() == 0) {
-      cerr << argv[0] << ": ";
+      errs() << argv[0] << ": ";
       if (ErrorMessage.size())
-        cerr << ErrorMessage << "\n";
+        errs() << ErrorMessage << "\n";
       else
-        cerr << "bitcode didn't read correctly.\n";
+        errs() << "bitcode didn't read correctly.\n";
       return 1;
     }
 
     // Figure out what stream we are supposed to write to...
-    // FIXME: cout is not binary!
-    std::ostream *Out = &std::cout;  // Default to printing to stdout...
+    // FIXME: outs() is not binary!
+    raw_ostream *Out = &outs();  // Default to printing to stdout...
     if (OutputFilename != "-") {
-      if (!Force && std::ifstream(OutputFilename.c_str())) {
-        // If force is not specified, make sure not to overwrite a file!
-        cerr << argv[0] << ": error opening '" << OutputFilename
-             << "': file exists!\n"
-             << "Use -f command line argument to force output\n";
-        return 1;
-      }
-      std::ios::openmode io_mode = std::ios::out | std::ios::trunc |
-                                   std::ios::binary;
-      Out = new std::ofstream(OutputFilename.c_str(), io_mode);
-
-      if (!Out->good()) {
-        cerr << argv[0] << ": error opening " << OutputFilename << "!\n";
+      std::string ErrorInfo;
+      Out = new raw_fd_ostream(OutputFilename.c_str(), /*Binary=*/true,
+                               Force, ErrorInfo);
+      if (!ErrorInfo.empty()) {
+        errs() << ErrorInfo << '\n';
+        if (!Force)
+          errs() << "Use -f command line argument to force output\n";
+        delete Out;
         return 1;
       }
 
@@ -490,7 +414,7 @@ int main(int argc, char **argv) {
       FPasses = new FunctionPassManager(new ExistingModuleProvider(M.get()));
       FPasses->add(new TargetData(M.get()));
     }
-      
+
     // If the -strip-debug command line option was specified, add it.  If
     // -std-compile-opts was also specified, it will handle StripDebug.
     if (StripDebug && !StandardCompileOpts)
@@ -500,12 +424,18 @@ int main(int argc, char **argv) {
     for (unsigned i = 0; i < PassList.size(); ++i) {
       // Check to see if -std-compile-opts was specified before this option.  If
       // so, handle it.
-      if (StandardCompileOpts && 
+      if (StandardCompileOpts &&
           StandardCompileOpts.getPosition() < PassList.getPosition(i)) {
         AddStandardCompilePasses(Passes);
         StandardCompileOpts = false;
       }
-      
+
+      if (StandardLinkOpts &&
+          StandardLinkOpts.getPosition() < PassList.getPosition(i)) {
+        AddStandardLinkPasses(Passes);
+        StandardLinkOpts = false;
+      }
+
       if (OptLevelO1 && OptLevelO1.getPosition() < PassList.getPosition(i)) {
         AddOptimizationPasses(Passes, *FPasses, 1);
         OptLevelO1 = false;
@@ -526,48 +456,59 @@ int main(int argc, char **argv) {
       if (PassInf->getNormalCtor())
         P = PassInf->getNormalCtor()();
       else
-        cerr << argv[0] << ": cannot create pass: "
-             << PassInf->getPassName() << "\n";
+        errs() << argv[0] << ": cannot create pass: "
+               << PassInf->getPassName() << "\n";
       if (P) {
+        bool isBBPass = dynamic_cast<BasicBlockPass*>(P) != 0;
+        bool isLPass = !isBBPass && dynamic_cast<LoopPass*>(P) != 0;
+        bool isFPass = !isLPass && dynamic_cast<FunctionPass*>(P) != 0;
+        bool isCGSCCPass = !isFPass && dynamic_cast<CallGraphSCCPass*>(P) != 0;
+
         addPass(Passes, P);
-        
+
         if (AnalyzeOnly) {
-          if (dynamic_cast<BasicBlockPass*>(P))
+          if (isBBPass)
             Passes.add(new BasicBlockPassPrinter(PassInf));
-          else if (dynamic_cast<LoopPass*>(P))
-            Passes.add(new  LoopPassPrinter(PassInf));
-          else if (dynamic_cast<FunctionPass*>(P))
+          else if (isLPass)
+            Passes.add(new LoopPassPrinter(PassInf));
+          else if (isFPass)
             Passes.add(new FunctionPassPrinter(PassInf));
-          else if (dynamic_cast<CallGraphSCCPass*>(P))
+          else if (isCGSCCPass)
             Passes.add(new CallGraphSCCPassPrinter(PassInf));
           else
             Passes.add(new ModulePassPrinter(PassInf));
         }
       }
-      
+
       if (PrintEachXForm)
-        Passes.add(new PrintModulePass(&cerr));
+        Passes.add(createPrintModulePass(&errs()));
     }
-    
+
     // If -std-compile-opts was specified at the end of the pass list, add them.
     if (StandardCompileOpts) {
       AddStandardCompilePasses(Passes);
       StandardCompileOpts = false;
-    }    
+    }
+
+    if (StandardLinkOpts) {
+      AddStandardLinkPasses(Passes);
+      StandardLinkOpts = false;
+    }
 
     if (OptLevelO1) {
-        AddOptimizationPasses(Passes, *FPasses, 1);
-      }
+      AddOptimizationPasses(Passes, *FPasses, 1);
+    }
 
     if (OptLevelO2) {
-        AddOptimizationPasses(Passes, *FPasses, 2);
-      }
+      AddOptimizationPasses(Passes, *FPasses, 2);
+    }
 
     if (OptLevelO3) {
-        AddOptimizationPasses(Passes, *FPasses, 3);
-      }
+      AddOptimizationPasses(Passes, *FPasses, 3);
+    }
 
     if (OptLevelO1 || OptLevelO2 || OptLevelO3) {
+      FPasses->doInitialization();
       for (Module::iterator I = M.get()->begin(), E = M.get()->end();
            I != E; ++I)
         FPasses->run(*I);
@@ -577,15 +518,15 @@ int main(int argc, char **argv) {
     if (!NoVerify && !VerifyEach)
       Passes.add(createVerifierPass());
 
-    // Write bitcode out to disk or cout as the last step...
+    // Write bitcode out to disk or outs() as the last step...
     if (!NoOutput && !AnalyzeOnly)
-      Passes.add(CreateBitcodeWriterPass(*Out));
+      Passes.add(createBitcodeWriterPass(*Out));
 
     // Now that we have all of the passes ready, run them.
     Passes.run(*M.get());
 
-    // Delete the ofstream.
-    if (Out != &std::cout) 
+    // Delete the raw_fd_ostream.
+    if (Out != &outs())
       delete Out;
 
     ContextManager::print();
@@ -593,9 +534,9 @@ int main(int argc, char **argv) {
     return 0;
 
   } catch (const std::string& msg) {
-    cerr << argv[0] << ": " << msg << "\n";
+    errs() << argv[0] << ": " << msg << "\n";
   } catch (...) {
-    cerr << argv[0] << ": Unexpected unknown exception occurred.\n";
+    errs() << argv[0] << ": Unexpected unknown exception occurred.\n";
   }
   llvm_shutdown();
   return 1;

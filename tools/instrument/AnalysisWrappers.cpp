@@ -21,6 +21,7 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Analysis/CallGraph.h"
+#include "llvm/Support/raw_ostream.h"
 #include <iostream>
 using namespace llvm;
 
@@ -31,7 +32,7 @@ namespace {
   /// or handle in alias analyses.
   struct ExternalFunctionsPassedConstants : public ModulePass {
     static char ID; // Pass ID, replacement for typeid
-    ExternalFunctionsPassedConstants() : ModulePass((intptr_t)&ID) {}
+    ExternalFunctionsPassedConstants() : ModulePass(&ID) {}
     virtual bool runOnModule(Module &M) {
       for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
         if (I->isDeclaration()) {
@@ -45,10 +46,10 @@ namespace {
                        E = CS.arg_end(); AI != E; ++AI)
                   if (isa<Constant>(*AI)) {
                     if (!PrintedFn) {
-                      std::cerr << "Function '" << I->getName() << "':\n";
+                      errs() << "Function '" << I->getName() << "':\n";
                       PrintedFn = true;
                     }
-                    std::cerr << *User;
+                    errs() << *User;
                     break;
                   }
               }
@@ -70,7 +71,7 @@ namespace {
 
   struct CallGraphPrinter : public ModulePass {
     static char ID; // Pass ID, replacement for typeid
-    CallGraphPrinter() : ModulePass((intptr_t)&ID) {}
+    CallGraphPrinter() : ModulePass(&ID) {}
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();

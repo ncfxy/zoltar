@@ -40,7 +40,8 @@ RPinvfunctiontimer("invfunctiontimer", "Insert instrumentation for function time
 
 bool InvFunctionTimerInstrumenter::runOnModule(Module &M) {
   Function *Main = M.getFunction("main");
-
+  LLVMContext &C = M.getContext();
+  
   cerr << "instrument: --- Function Timer Invariant ---\n";
  
   if (Main == 0) {
@@ -51,10 +52,10 @@ bool InvFunctionTimerInstrumenter::runOnModule(Module &M) {
 
   // Add library function prototype
   Constant *NotifyFn = M.getOrInsertFunction("_handleInvariantChangeInt", 
-                              Type::VoidTy,   // returns void
-                              Type::Int32Ty,  // InvariantTypeIndex
-                              Type::Int32Ty,  // FunctionIndex
-                              Type::Int32Ty,  // Value
+                              Type::getVoidTy(C),   // returns void
+                              Type::getInt32Ty(C),  // InvariantTypeIndex
+                              Type::getInt32Ty(C),  // FunctionIndex
+                              Type::getInt32Ty(C),  // Value
                               NULL);
 
   unsigned invariantTypeIndex = IndexManager::getInvariantTypeIndex();
@@ -78,9 +79,9 @@ bool InvFunctionTimerInstrumenter::runOnModule(Module &M) {
 
     // add call to lib function for notifying function entrance
     std::vector<Value*> Args(3);
-    Args[0] = ConstantInt::get(Type::Int32Ty, invariantTypeIndex);
-    Args[1] = ConstantInt::get(Type::Int32Ty, nInvariants);
-    Args[2] = ConstantInt::get(Type::Int32Ty, 0);
+    Args[0] = ConstantInt::get(Type::getInt32Ty(C), invariantTypeIndex);
+    Args[1] = ConstantInt::get(Type::getInt32Ty(C), nInvariants);
+    Args[2] = ConstantInt::get(Type::getInt32Ty(C), 0);
          
     CallInst::Create(NotifyFn, Args.begin(), Args.end(), "", InsertPos);
 
@@ -114,9 +115,9 @@ bool InvFunctionTimerInstrumenter::runOnModule(Module &M) {
           nReturns++;
           // add cal to lib function for notifying function exit
           std::vector<Value*> Args(3);
-          Args[0] = ConstantInt::get(Type::Int32Ty, invariantTypeIndex);
-          Args[1] = ConstantInt::get(Type::Int32Ty, nInvariants);
-          Args[2] = ConstantInt::get(Type::Int32Ty, -1);
+          Args[0] = ConstantInt::get(Type::getInt32Ty(C), invariantTypeIndex);
+          Args[1] = ConstantInt::get(Type::getInt32Ty(C), nInvariants);
+          Args[2] = ConstantInt::get(Type::getInt32Ty(C), -1);
 
           CallInst::Create(NotifyFn, Args.begin(), Args.end(), "", InsertPos);
         }

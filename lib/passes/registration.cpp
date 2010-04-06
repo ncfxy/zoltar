@@ -18,8 +18,8 @@ Function* llvm::createRegisterAllFunction(Module &M) {
   if((RegFn = M.getFunction("_registerAll")) != NULL)
     return RegFn;
 
-  RegFn = cast<Function>(M.getOrInsertFunction("_registerAll", Type::VoidTy, NULL));
-  BasicBlock *entry = BasicBlock::Create("entry", RegFn);
+  RegFn = cast<Function>(M.getOrInsertFunction("_registerAll", Type::getVoidTy(M.getContext()), NULL));
+  BasicBlock *entry = BasicBlock::Create(M.getContext(), "entry", RegFn);
   IRBuilder<true> builder(entry);
   builder.CreateRetVoid();
 
@@ -35,25 +35,27 @@ void llvm::addInvariantTypeRegistration(Module &M,
                                   int nInvariants, 
                                   const std::string &invariantTypeName, 
                                   int isTimerUpdated) {
+  LLVMContext &C = M.getContext();
+  
   // add global string to hold invariant type name
-  Constant *invariantTypeNameC = ConstantArray::get(invariantTypeName);
-  GlobalValue *invariantTypeNameGV = new GlobalVariable(invariantTypeNameC->getType(), 
+  Constant *invariantTypeNameC = ConstantArray::get(C, invariantTypeName);
+  GlobalValue *invariantTypeNameGV = new GlobalVariable(M,
+                                                  invariantTypeNameC->getType(), 
                                                   true, 
                                                   GlobalValue::InternalLinkage,
                                                   invariantTypeNameC,
-                                                  "invarianttypename",
-                                                  &M);
+                                                  "invarianttypename");
 
   Function *RegFn = createRegisterAllFunction(M);
     
   // add instrumentation registration call to _registerAll function
   Constant *InitFn = M.getOrInsertFunction("_registerInvariantType", 
-                          Type::VoidTy, 
-                          Type::Int32Ty,  // timestamp
-                          Type::Int32Ty,  // invarianttype index
-                          Type::Int32Ty,  // nInvariants
-                          Type::Int32Ty,  // name
-                          Type::Int32Ty,  // isTimerUpdated
+                          Type::getVoidTy(C), 
+                          Type::getInt32Ty(C),  // timestamp
+                          Type::getInt32Ty(C),  // invarianttype index
+                          Type::getInt32Ty(C),  // nInvariants
+                          Type::getInt32Ty(C),  // name
+                          Type::getInt32Ty(C),  // isTimerUpdated
                           NULL);
 
   BasicBlock *Entry = RegFn->begin();
@@ -61,11 +63,11 @@ void llvm::addInvariantTypeRegistration(Module &M,
   while (isa<AllocaInst>(InsertPos)) ++InsertPos;
     
   std::vector<Value*> Args(5);
-  Args[0] = ConstantInt::get(Type::Int32Ty, (unsigned int) time(0));
-  Args[1] = ConstantInt::get(Type::Int32Ty, invariantTypeIndex);
-  Args[2] = ConstantInt::get(Type::Int32Ty, nInvariants);
-  Args[3] = CastInst::createPointerCast(invariantTypeNameGV, Type::Int32Ty, "st.cast", InsertPos);
-  Args[4] = ConstantInt::get(Type::Int32Ty, isTimerUpdated);
+  Args[0] = ConstantInt::get(Type::getInt32Ty(C), (unsigned int) time(0));
+  Args[1] = ConstantInt::get(Type::getInt32Ty(C), invariantTypeIndex);
+  Args[2] = ConstantInt::get(Type::getInt32Ty(C), nInvariants);
+  Args[3] = CastInst::CreatePointerCast(invariantTypeNameGV, Type::getInt32Ty(C), "st.cast", InsertPos);
+  Args[4] = ConstantInt::get(Type::getInt32Ty(C), isTimerUpdated);
 
   CallInst::Create(InitFn, Args.begin(), Args.end(), "", InsertPos);
 }
@@ -76,24 +78,27 @@ void llvm::addSpectrumRegistration(Module &M,
                                   int spectrumIndex, 
                                   int nComponents, 
                                   const std::string &spectrumName) {
+  
+  LLVMContext &C = M.getContext();
+  
   // add global string to hold spectrum name
-  Constant *spectrumNameC = ConstantArray::get(spectrumName);
-  GlobalValue *spectrumNameGV = new GlobalVariable(spectrumNameC->getType(), 
+  Constant *spectrumNameC = ConstantArray::get(C, spectrumName);
+  GlobalValue *spectrumNameGV = new GlobalVariable(M, 
+                                                  spectrumNameC->getType(), 
                                                   true, 
                                                   GlobalValue::InternalLinkage,
                                                   spectrumNameC,
-                                                  "spectrumname",
-                                                  &M);
+                                                  "spectrumname");
 
   Function *RegFn = createRegisterAllFunction(M);
     
   // add instrumentation registration call to _registerAll function
   Constant *InitFn = M.getOrInsertFunction("_registerSpectrum", 
-                          Type::VoidTy, 
-                          Type::Int32Ty,  // timestamp
-                          Type::Int32Ty,  // spectrum index
-                          Type::Int32Ty,  // nComponents
-                          Type::Int32Ty,  // name
+                          Type::getVoidTy(C), 
+                          Type::getInt32Ty(C),  // timestamp
+                          Type::getInt32Ty(C),  // spectrum index
+                          Type::getInt32Ty(C),  // nComponents
+                          Type::getInt32Ty(C),  // name
                           NULL);
 
   BasicBlock *Entry = RegFn->begin();
@@ -101,10 +106,10 @@ void llvm::addSpectrumRegistration(Module &M,
   while (isa<AllocaInst>(InsertPos)) ++InsertPos;
     
   std::vector<Value*> Args(4);
-  Args[0] = ConstantInt::get(Type::Int32Ty, (unsigned int) time(0));
-  Args[1] = ConstantInt::get(Type::Int32Ty, spectrumIndex);
-  Args[2] = ConstantInt::get(Type::Int32Ty, nComponents);
-  Args[3] = CastInst::createPointerCast(spectrumNameGV, Type::Int32Ty, "st.cast", InsertPos);
+  Args[0] = ConstantInt::get(Type::getInt32Ty(C), (unsigned int) time(0));
+  Args[1] = ConstantInt::get(Type::getInt32Ty(C), spectrumIndex);
+  Args[2] = ConstantInt::get(Type::getInt32Ty(C), nComponents);
+  Args[3] = CastInst::CreatePointerCast(spectrumNameGV, Type::getInt32Ty(C), "st.cast", InsertPos);
 
   CallInst::Create(InitFn, Args.begin(), Args.end(), "", InsertPos);
 }
