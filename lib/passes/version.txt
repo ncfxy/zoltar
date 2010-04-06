@@ -1,0 +1,14 @@
+
+The following improvements on the passes lib were made:
+
+- standardized module processing
+- better and complete context generation
+  especially for the invariants:
+    - defuse:    every use of a variable is now located in terms of linenr and
+                   variable (def) name
+                 unknowns are named "-" but have correct line numbering
+    - loads:     name of the variable is now correct
+    - function:  linenr at start of function
+    - loopcount: location is at first line of loop
+- comments added for clarity
+
