@@ -1,0 +1,71 @@
+
+Debugging is an important part of software development.
+Several debugging tools exist which are based on stepping through the execution of the program.
+These tools require the user to have knowledge about the code that is executed and 
+about the inner workings and dependencies in the program 
+which can be very difficult for one person to comprehend.
+
+In practice, a large test set usually exists against which the program under development is tested.
+Some tests will fail, some will pass, and this information can indicate what is going wrong
+when unexpected behavior occurs.
+However, in many cases, especially for large programs, 
+a tester needs extensive knowledge about the program to be able to 
+map a certain output or behavior to a point in the source code.
+
+% With different testing and debugging methods available, 
+% still there are times at which it is uncertain which locations of the source code should be investigated.
+% These moments of undecidability can cause a great delay in software development
+% and can limit the completeness and the stability of the product,
+% given the relatively short time-to-market these days.
+
+A solution to these issues would be a black box method 
+which takes a program and available test cases 
+and returns the most probable location of the fault
+in case a number of these tests fail.
+% In this tutorial a set of tools is introduced and explained
+% which is able to do just that.
+In this tutorial a toolset is introduced that implements
+a technique called Spectrum-based Fault Localization (SFL \cite{sfltaicpart}).
+SFL is based on instrumenting a program and keeping track of executed parts of the code
+after which the spectrum-based fault localization technique is applied to 
+return a list of source code locations ordered by the likelihood of it containing the fault.
+Furthermore, the tool set enables a program to be trained with expected behavior
+and to automatically detect an error if it encounters unexpected behavior.
+The fact that no knowledge is needed of the program to acquire possible fault locations
+would make this set of tools a useful extension to 
+currently applied methods of testing and debugging.
+
+The toolset is called \textsc{Zoltar}
+%\footnote{\textsc{Barinel} stands
+%for Bayesian AppRoach to dIagnosing iNtErmittent fauLts. A barinel is a type
+%of caravel used by the Portuguese sailors during their discoveries.}
+and is the result of research done at TUD in the context
+of the TRADER project~\cite{trader},
+involving several Dutch universities, Philips Tass, IMEC, and NXP
+Semiconductors and is conducted under the
+responsibility of the Embedded Systems Institute (ESI) in Eindhoven, the
+Netherlands. The main goal of the
+TRADER project was to develop methods and tools for ensuring reliability
+of consumer electronic
+products, minimizing product failures that are exposed to the end user.
+
+This tutorial is organized as follows.
+Chapter \ref{c:SFL} gives background information on the spectrum-based fault localization
+technique which is adopted by the Zoltar toolset.
+In Chapter \ref{c:Installation} the installation of the tools is explained
+and the different tools of the package are discussed.
+In Chapter \ref{c:ExampleProgramAnalysis} an example program is discussed
+which is then instrumented and analyzed using the tools.
+It will show the basics of the tools and enables the reader to perform
+a quick program analysis.
+Chapter \ref{c:ProgramSpectrumGeneration} gives some details of 
+the instrumentation of program points which together will create program spectra.
+Chapter \ref{c:AutomaticErrorDetection} contains information on 
+the instrumentation, training and testing of a program in order to 
+support automatic error detection.
+The process of instrumentation is generalized in Chapter \ref{c:AnalyzingLargePrograms}
+to be able to efficiently analyze large projects consisting of multiple source files.
+Chapter \ref{c:BatchExecution} contains information on options in the tools to aid in
+batch execution of tests.
+Finally, the appendices contain detailed information of techniques and developers information
+for the tool set.

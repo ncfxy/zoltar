@@ -1,0 +1,646 @@
+
+To be able to write custom instrumentation passes,
+one must have some knowledge of the LLVM intermediate
+representation and of the LLVM API.
+The documentation of LLVM can be found at
+\verb|http://llvm.org|.
+Most interesting in this context is the document that
+handles writing an LLVM pass, which is located at
+\verb|http://llvm.cs.uiuc.edu/docs/WritingAnLLVMPass.html|.
+Keep in mind that the LLVM version supported by
+the Zoltar toolset is version 2.4, 
+meaning that the correct API documentation should be consulted.
+
+The instrumentation passes are located in the 
+\verb|/lib/passes/| directory within the Zoltar 
+source tree.
+Each pass is in fact an optimization pass
+in the concept of LLVM.
+Each pass is a subclass of a \verb|ModulePass|,
+a \verb|FunctionPass| or a \verb|LoopPass|,
+but typically a \verb|ModulePass| should be
+used as the superclass of an instrumentation pass.
+The function that will be called during the instrumentation
+is \verb|runOnModule|, 
+which will contain the code to modify the LLVM bytecode.
+Within a ModulePass we have the ability to
+iterate through all functions and we can access
+all variables.
+This will be explained in the following sections.
+
+When changing parts of the intermediate code,
+care must be taken not to change the workings
+of the original program, for example,
+by inserting a new branch.
+
+To be able to relate the instrumentation points to the
+lines of code in the source file, debug information must
+be extracted as well.
+How this is done is shown in the example instrumentation
+pass in the last section of this appendix.
+
+
+
+
+\section{Inserting Instrumentation Code}
+
+To instrument a location within the program,
+the exact location must first be found.
+For example, when instrumenting program points to
+generate a spectrum on the function level,
+we must navigate to the beginning of each function.
+Then, conform the LLVM intermediate representation rules,
+new instructions can be added after the initial instructions
+for allocating memory.
+
+We can use the following constructs to iterate
+through functions, basic blocks and instructions:
+
+\begin{lstlisting} [numbers=none]
+/* in the runOnModule function: */
+  // M is the Module, argument of runOnModule
+  // Loop through all functions within module
+  for (Module::iterator F = M.begin(), ME = M.end(); 
+       F != ME; ++F) {
+    // Loop through all basic blocks within function
+    for (Function::iterator B = F->begin(), FE = F->end(); 
+         B != FE; ++B) {
+      // Loop through all instructions within basic block
+      for (BasicBlock::iterator I = B->begin(), BE = B->end(); 
+        I != BE; I++) {
+        // process Instruction *I
+      }
+    }
+  }
+\end{lstlisting}
+
+When the correct location is found,
+instructions can be added to call a library function
+to indicate that this program point is being executed,
+or that a certain variable has been changed.
+
+The LLVM framework provides the means to analyze the
+execution tree and, for example, can provide a way to
+iterate through all existing loops within a function.
+To achieve this, the function
+\verb|getAnalysisUsage| should be overridden in the pass
+and should contain a \emph{LoopInfo} analysis requirement.
+As a result, the LoopInfo pass (standard LLVM pass) is run 
+in advance, so that information of loops within the program
+is available.
+
+\begin{lstlisting} [numbers=none]
+// override getAnalysisUsage
+void getAnalysisUsage(AnalysisUsage &AU) const {
+  // indicate that the pass does not change the LLVM program
+  AU.setPreservesAll();
+  // makes sure that the LoopInfo pass is run in advance
+  AU.addRequired<LoopInfo>();
+}
+
+/* in the runOnModule function: */
+    // get loop info analysis from LLVM
+    LoopInfo &LI = getAnalysis<LoopInfo>(*F);
+
+    // process all loops in function
+    for (LoopInfo::iterator L = LI.begin(), LE = LI.end(); 
+         L != LE; ++L) {
+      // process Loop *L
+    }
+\end{lstlisting}
+
+This is used in creating the \verb|loopcount| invariant pass.
+
+
+\subsection{Program Spectrum}
+
+A call to the library function \verb|_updateSpectrum| is inserted
+in the LLVM intermediate representation to generate spectrum
+information on that point in the program.
+This program point can mark the beginning of a function or the
+basic block, it can be located in front a certain type of instruction
+or it can be any other type of program point.
+What is relevant here is that there is a spectrum item
+that refers to the execution of a single point in the program.
+
+The \verb|_updateSpectrum| function has the following prototype.
+\begin{lstlisting} [numbers=none]
+void _updateSpectrum(unsigned int spectrumIndex, 
+                     unsigned int componentIndex);
+\end{lstlisting}
+
+Multiple spectra can be instrumented within the same program.
+These are distinguished by the spectrum index.
+Each spectrum contains a number of program points that are instrumented.
+For example, if both the function spectrum and the basic block spectrum 
+are instrumented, one has index 0 and the other will have index 1.
+The function spectrum contains a number of instrumented program points
+equal to the number of functions in the instrumented program.
+Each instrumented point has its own index to be able to correctly update
+the spectrum during execution.
+
+The Zoltar library contains an \verb|IndexManager| to keep track of the
+indices of the spectra and invariant types.
+The index of the current spectrum should be requested before instrumenting
+the LLVM code, i.e., at the start of the \verb|runOnModule| function.
+The index of the current program point (componentIndex) is simply a counter
+that starts at 0 and is incremented with each inserted call to the
+\verb|_updateSpectrum| library function.
+The relevant code to insert spectrum points in the LLVM bytecode is
+given in the following code.
+\begin{lstlisting} [numbers=none]
+// include the index manager
+#include "indexManager.h"
+
+/* in the runOnModule function: */
+  // Add library function prototype
+  Constant *SpFn = M.getOrInsertFunction("_updateSpectrum", 
+                          Type::VoidTy, 
+                          Type::Int32Ty,  // spectrum index
+                          Type::Int32Ty,  // component index
+                          NULL);
+
+  // get the correct index of the current spectrum
+  unsigned spectrumIndex = IndexManager::getSpectrumIndex();
+
+  // initialize the component index counter
+  unsigned nComponents = 0;
+
+/* in the runOnModule function, at an insertion point: */
+    // create the arguments to the library function
+    std::vector<Value*> Args(2);
+    Args[0] = ConstantInt::get(Type::Int32Ty, spectrumIndex);
+    Args[1] = ConstantInt::get(Type::Int32Ty, nComponents++);
+    
+    // insert a call to the _updateSpectrum function
+    //   just before the LLVM instruction I
+    CallInst::Create(SpFn, Args.begin(), Args.end(), "", I);
+\end{lstlisting}
+
+At the end of the spectrum instrumentation pass, 
+the currently created pass should be registered in the initial
+part of the resulting program.
+This is required to be able to allocate and initialize 
+a sufficient amount of memory.
+This is done by means of the \verb|addSpectrumRegistration|
+function, which has the following prototype.
+\begin{lstlisting} [numbers=none]
+void addSpectrumRegistration(Module &M,
+                             int spectrumIndex, 
+                             int nComponents, 
+                             const std::string &SpectrumName);
+\end{lstlisting}
+
+The Module (which is an argument to the runOnModule function) 
+is given as argument to the function.
+This is required to insert an initialization function that 
+processes all registered instrumentation passes.
+The \verb|spectrumIndex| argument is the index of the current
+spectrum, which was retrieved by the \emph{IndexManager}.
+The \verb|nComponents| argument is the number of instrumented
+program points during this pass, i.e., the final value of the
+program point counter.
+The \verb|SpectrumName| argument should be a short (no more than 16 characters)
+informative description of the instrumentation.
+This will be used in the analysis tools to represent the spectrum.
+For example, the basic block spectrum instrumentation pass
+creates a spectrum with the name \verb|Basic_Blocks|.
+
+
+\subsection{Invariant Type}
+\label{s:appendixInvariantType}
+
+Multiple library functions exist for instrumenting invariants.
+These are based on the type of the variable that is instrumented.
+We distinguish the following invariant change library functions.
+\begin{lstlisting} [numbers=none]
+void _handleInvariantChangeDouble(unsigned int invTypeIndex, 
+                                  unsigned int invIndex, 
+                                  double val);
+void _handleInvariantChangeInt(unsigned int invTypeIndex, 
+                               unsigned int invIndex, 
+                               int val);
+void _handleInvariantChangeUInt(unsigned int invTypeIndex, 
+                                unsigned int invIndex, 
+                                unsigned int val);
+void _handleInvariantChangePtr(unsigned int invTypeIndex, 
+                               unsigned int invIndex, 
+                               void *val);
+void _handleInvariantIncrement(unsigned int invTypeIndex, 
+                               unsigned int invIndex);
+\end{lstlisting}
+All these functions signify a change of an instrumented variable,
+corresponding to the invariant with index \texttt{invIndex} of the
+invariant type with index \verb|invTypeIndex|.
+The four types that are distinguished are \texttt{double}, 
+\texttt{int}, \texttt{unsigned int} and the \texttt{void pointer} type.
+To efficiently support an invariant based on a counter,
+the library also contains an increment library function, 
+which simply adds 1 to a certain variable corresponding to the given 
+invariant index.
+
+Similar to the code of the spectrum instrumentation,
+the following pieces of code is used to insert invariant
+instrumentation.
+It checks the type of the variable,
+extracts the appropriate information, type casts correctly,
+and calls the library function.
+\begin{lstlisting} [numbers=none]
+// include the index manager
+#include "indexManager.h"
+
+/* in the runOnModule function: */
+  // Add library function prototypes
+  Constant *handleDoubleFn = M.getOrInsertFunction(
+    "_handleInvariantChangeDouble", 
+    Type::VoidTy,   // returns void
+    Type::Int32Ty,  // invTypeIndex
+    Type::Int32Ty,  // invIndex
+    Type::DoubleTy, // val
+    NULL);
+  Constant *handleIntegerFn = M.getOrInsertFunction(
+    "_handleInvariantChangeInt", 
+    Type::VoidTy,   // returns void
+    Type::Int32Ty,  // invTypeIndex
+    Type::Int32Ty,  // invIndex
+    Type::Int32Ty,  // val
+    NULL);
+  Constant *handlePointerFn = M.getOrInsertFunction(
+    "_handleInvariantChangePtr", 
+    Type::VoidTy,   // returns void
+    Type::Int32Ty,  // invTypeIndex
+    Type::Int32Ty,  // invIndex
+    PointerType::getUnqual(Type::Int32Ty),  // val
+    NULL);
+  Constant *handleUintFn = M.getOrInsertFunction(
+    "_handleInvariantChangeUInt", 
+    Type::VoidTy,   // returns void
+    Type::Int32Ty,  // invTypeIndex
+    Type::Int32Ty,  // invIndex
+    Type::Int32Ty,  // val
+    NULL);
+
+  // get the correct index of the current invariant type
+  unsigned int invariantTypeIndex = 
+    IndexManager::getInvariantTypeIndex();
+
+  // initialize the counter for the invariant index
+  unsigned int nInvariants = 0;
+
+/* in the runOnModule function, at an insertion point: */
+    // Value Val is the value to instrument
+    const Type *InstType = Val->getType();
+    std::vector<Value*> Args(3);
+    if(InstType->isInteger()) {
+      // create the arguments to the library function
+      Args[0] = ConstantInt::get(Type::Int32Ty, 
+                                 invariantTypeIndex);
+      Args[1] = ConstantInt::get(Type::Int32Ty, 
+                                 nInvariants++);
+      // insert a cast to int instruction before instruction I,
+      //   the resulting value is passed to the library call
+      Args[2] = CastInst::createIntegerCast(Val, 
+                                            Type::Int32Ty, 
+                                            true, 
+                                            "inv.cast", 
+                                            I);
+
+      // insert call to the _handleInvariantChangeInt function
+      //   just before the LLVM instruction I
+      CallInst::Create(handleIntegerFn, 
+                       Args.begin(), 
+                       Args.end(), 
+                       "", 
+                       I);
+    }
+\end{lstlisting}
+
+As is the case with spectrum instrumentation,
+at the end of the invariant instrumentation pass 
+the currently created pass should be registered in the initial
+part of the resulting program.
+This is done by calling the library function \texttt{addInvariantTypeRegistration}, 
+which has the following prototype.
+\begin{lstlisting} [numbers=none]
+void addInvariantTypeRegistration(
+  Module &M,
+  int invariantTypeIndex, 
+  int nInvariants, 
+  const std::string &invariantTypeName, 
+  int isTimerUpdated);
+\end{lstlisting}
+The arguments are the same as for the spectrum registration function,
+except for the last argument.
+This indicates if the invariant is based on a timer update.
+If this is the case, the value of the invariant variable 
+is not changed due to the value of a variable of the program
+during execution.
+Rather, it is incremented based on a timer interrupt each millisecond.
+
+The timer will increment only if the current value is non-negative.
+The instrumentation is responsible for resetting the value,
+using the \texttt{\_handleInvariantChangeUInt} library function, 
+if the instrumented point in the code is executed.
+For example, to implement a function timer, 
+the invariant variable can be set to 0 at the beginning of a function
+and should be set to -1 at every endpoint of the function
+to indicate that the value should not be incremented anymore.
+This will result in a measurement of execution time of a function.
+When this invariant is trained, an abnormal long execution of the function,
+e.g., an endless loop, can be detected.
+
+
+
+\section{A Practical Example}
+
+An example instrumentation pass gives more insight of the 
+way to navigate and process LLVM bytecode.
+The basic block spectrum instrumentation pass included in
+the Zoltar library is used as an example in this section.
+The pass will be explained step by step.
+Included in this example is the way in which debug information
+is extracted to generate context information of the source file.
+
+Before writing the actual pass, the necessary headers need to
+be included. 
+Among these headers are many LLVM headers, mainly for processing LLVM
+bytecode.
+Next to that we can include standard headers, e.g., \texttt{<fstream>}
+for writing to files or to print messages to the console while 
+instrumentation is in progress.
+Finally, we need to include \texttt{indexManager.h} for retrieving the
+correct index for the spectrum, 
+\texttt{contextManager.h} which handles the generation of the context file,
+and \texttt{registration.h} to register the instrumentation to the program.
+
+\begin{lstlisting} [numbers=none]
+#include "llvm/Constants.h"
+#include "llvm/DerivedTypes.h"
+#include "llvm/Instructions.h"
+#include "llvm/Module.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/Streams.h"
+#include "llvm/Transforms/Instrumentation.h"
+#include "llvm/ValueSymbolTable.h"
+#include "llvm/Value.h"
+#include "llvm/Support/CallSite.h"
+#include "llvm/IntrinsicInst.h"
+#include "llvm/Analysis/ValueTracking.h"
+#include "llvm/Support/CFG.h"
+#include "llvm/Target/TargetData.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include <time.h>
+#include <fstream>
+
+#include "indexManager.h"
+#include "contextManager.h"
+#include "registration.h"
+\end{lstlisting}
+
+Next, we set the namespace and define the class of the instrumentation pass.
+We call it \texttt{SPBasicBlockInstrumenter} and derive it from \texttt{ModulePass}.
+The \texttt{runOnModule} function needs to be overridden.
+The \texttt{char ID} is required for every LLVM pass and is used
+for the actual registration of the pass in the instrumenter tool.
+
+\begin{lstlisting} [numbers=none]
+using namespace llvm;
+using std::ofstream;
+
+namespace {
+  class SpBasicBlockInstrumenter : public ModulePass {
+    bool runOnModule(Module &M);
+  public:
+    static char ID;
+    SpBasicBlockInstrumenter() : ModulePass((intptr_t)&ID) {}
+  };
+}
+\end{lstlisting}
+
+The following lines sets the static \verb|ID| to 0 (this value should be set for all passes)
+and the pass is registered to the \texttt{instrument} tool, 
+using a static \texttt{RegisterPass} object.
+The latter requires two arguments.
+First is the name of the pass,
+the second is a description of the pass.
+This information will appear in the complete listing of passes
+(LLVM optimization passes and Zoltar instrumentation passes)
+when passing the \verb|--help| option to the \texttt{instrument} tool.
+The name of the pass will be used as parameter to the
+\verb|instrument| tool to run this instrumentation.
+In this case, the \texttt{-spbasicblock} will instrument
+basic blocks of the given program.
+
+\begin{lstlisting} [numbers=none]
+char SpBasicBlockInstrumenter::ID = 0;
+static RegisterPass<SpBasicBlockInstrumenter>
+  RPspblock("spbasicblock", 
+            "Insert instrumentation for block hit spectrum");
+\end{lstlisting}
+
+Next begins the important \texttt{runOnModule} function.
+At the start of the function, a notification is given on \texttt{stderr}.
+The Module is checked for the main entry function.
+If no main is present, the instrumentation is not possible and 
+is aborted.
+
+\begin{lstlisting} [numbers=none]
+bool SpBasicBlockInstrumenter::runOnModule(Module &M) {
+
+  cerr << "instrument: --- Basic Block Spectrum ---\n";
+
+  Function *Main = M.getFunction("main");
+  if (Main == 0) {
+    cerr << "WARNING: cannot insert block instrumentation"
+         << " into a module with no main function!\n";
+    return false;  // No main, no instrumentation!
+  }
+\end{lstlisting}
+
+The prototype of the \texttt{\_updateSpectrum} function needs to be 
+inserted in the module and a reference is saved.
+If it already exists (because of a previously executed instrumentation pass)
+the reference to that function call is retrieved.
+This reference is used later on to notify the library that the instrumented
+point is executed.
+
+\begin{lstlisting} [numbers=none]
+  // Add library function prototype
+  Constant *SpFn = M.getOrInsertFunction("_updateSpectrum", 
+                          Type::VoidTy, 
+                          Type::Int32Ty,  // spectrum index
+                          Type::Int32Ty,  // component index
+                          NULL);
+\end{lstlisting}
+
+In the following lines, the index of this spectrum is retrieved from 
+the index manager, 
+and the component counter is defined and initialized.
+
+\begin{lstlisting} [numbers=none]
+  unsigned spectrumIndex = IndexManager::getSpectrumIndex();
+  unsigned nComponents = 0;
+\end{lstlisting}
+
+Next, every function in the module is visited and every basic block within
+that function is visited.
+Each of these basic blocks will be instrumented. 
+While iterating through the functions, 
+the functions which are only a declaration of a function are skipped, 
+as they will not contain basic blocks.
+Also take note of the register function, which will be called at the end of the instrumentation,
+adds a function to the module for initializing the instrumentation data.
+This function, (\texttt{\_registerAll}), should not be instrumented during the
+instrumentation pass.
+The current function is skipped if it has that specific name.
+Each basic block is skipped if it is dead (if it is not the first basic block
+of the function and it has no predecessors).
+
+\begin{lstlisting} [numbers=none]
+ // Loop through all functions within module
+  for (Module::iterator F = M.begin(), ME = M.end(); 
+       F != ME; ++F) {
+    // skip function declarations
+    if(F->isDeclaration()) 
+      continue;
+
+    // skip the _registerAll function
+    if(F->getName()=="_registerAll")
+      continue;
+
+    // Loop through all basic blocks within function
+    for (Function::iterator B = F->begin(), FE = F->end(); 
+         B != FE; ++B) {
+      //skip dead blocks
+      BasicBlock *bb = B;
+      if (B!=F->begin() && (pred_begin(bb)==pred_end(bb))) {
+        continue; //skip dead blocks
+      }
+\end{lstlisting}
+
+At this point we have a new basic block which needs to be instrumented.
+To do this we iterate through all instructions within the 
+basic block until we find the first debug stoppoint.
+We know that at least one debug stoppoint will exist
+in a basic block.
+This is used by a debugger tool like \texttt{dbg} to step through the
+execution of the program.
+If a debug stoppoint LLVM instruction is found (\texttt{DbgStopPointInst}),
+debug information of this program point can be extracted.
+The file, path and line number are extracted from this instruction.
+The name is irrelevant in this case, since a name for a basic block 
+does not exist. We will use "-" for the name by default.
+
+The ContextManager is responsible for creating the context file.
+The information for each instrumented point is gathered by calling
+the \texttt{addSpectrumContext} or \texttt{addInvariantContext} 
+function while instrumenting a program point.
+In this case we call \texttt{addSpectrumContext} and we give the
+index of the spectrum and of the current program point (component), 
+and all known information of the source location corresponding to
+the current instrumented program point.
+
+
+\begin{lstlisting} [numbers=none]
+      // Loop through all instructions within basic block
+      for (BasicBlock::iterator I = B->begin(), BE = B->end(); 
+           I != BE; I++) {
+
+        if(isa<DbgStopPointInst>(*I)) {
+          DbgStopPointInst &DSPI = cast<DbgStopPointInst>(*I);
+          std::string file, dir, name="-";
+          llvm::GetConstantStringInfo(DSPI.getDirectory(), 
+                                      dir);
+          llvm::GetConstantStringInfo(DSPI.getFileName(), 
+                                      file);
+          int line = DSPI.getLine();
+
+          // add source context of invariant to context file
+          ContextManager::addSpectrumContext(
+            spectrumIndex,     // spectrumIndex
+            nComponents,       // componentIndex
+            dir,               // path
+            file,              // file
+            line,              // line
+            name);             // name
+\end{lstlisting}
+
+At this point we will do the actual instrumentation,
+i.e., add a call to the \texttt{\_updateSpectrum} library function
+at the beginning of the basic block.
+Since the library function contains two arguments, 
+we have to create a vector of LLVM Value objects and
+fill them with the correct information of the spectrum index and
+the index of the current component.
+The component index is then incremented for the next basic block.
+A call to the library function is inserted into the LLVM bytecode
+just before the debug stoppoint,
+which results in a spectrum update every time this basic block
+is executed.
+After inserting the call, the iteration through the basic block
+can be aborted and the next basic block of the current function
+is processed.
+The same is done for all functions within the module.
+
+\begin{lstlisting} [numbers=none]
+          // add call to lib function
+          std::vector<Value*> Args(2);
+          Args[0] = ConstantInt::get(Type::Int32Ty, 
+                                     spectrumIndex);
+          Args[1] = ConstantInt::get(Type::Int32Ty, 
+                                     nComponents++);
+          
+          CallInst::Create(SpFn, 
+                           Args.begin(),  
+                           Args.end(), 
+                           "", 
+                           I);
+
+          break;
+        }
+      }
+    }
+  }
+\end{lstlisting}
+
+After all basic blocks are instrumented,
+the spectrum needs to be registered using the
+\verb|addSpectrumRegistration| function.
+This will result in initialization of the spectrum data at 
+the start of the instrumented program.
+The function requires as arguments the module, the spectrum index, 
+the total number of instrumented points of this instrumentation pass,
+and the name of the instrumentation pass.
+This name should not be too large and preferably contain no spaces,
+to be correctly handled by the tools.
+
+Finally, a summary message is printed on \texttt{stdout} and
+the \texttt{runOnModule} function returns \texttt{true}, 
+to indicate that the LLVM bytecode has changed during this pass.
+
+\begin{lstlisting} [numbers=none]
+  // add the registration of the instrumented spectrum points 
+  //  in the _registerAll() function
+  addSpectrumRegistration(M, 
+                          spectrumIndex, 
+                          nComponents, 
+                          "Basic_Blocks");
+  
+  llvm::cerr << "instrument: " << nComponents 
+             << " basic blocks instrumented\n";
+
+  // notify change of program 
+  return true;
+}
+\end{lstlisting}
+
+This is all that is needed for instrumenting a program to generate
+spectrum information.
+The new pass should be saved in the \texttt{lib/passes/} directory 
+in the Zoltar package.
+Running \texttt{make} and \texttt{make install} will compile the pass
+and add it to the library.
+After this, the newly created instrumentation pass can be given
+as argument to the \texttt{instrument} tool
+(with the pass name defined in the \texttt{RegisterPass} object in the beginning of the example code).

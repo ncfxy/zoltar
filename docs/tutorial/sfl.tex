@@ -1,0 +1,238 @@
+
+% excerpt of TAIC PART
+
+An important part of diagnosis and repair consists in
+localizing faults.
+Several tools for automated 
+debugging and systems diagnosis implement an approach
+to fault localization based on an analysis of the 
+differences in program \emph{spectra} for \emph{passed} and \emph{failed}
+runs. Passed runs are executions of a program that
+are completed correctly, whereas failed runs are executions
+in which an error was detected. A program spectrum is
+an execution profile that indicates which parts of a 
+program are active during a run. Fault localization entails
+identifying the part of the program whose activity 
+correlates most with the detection of errors. 
+
+Spectrum-based fault localization (SFL) does not rely on
+a model of the system under investigation. It can easily 
+be integrated with existing testing procedures, and
+because of the relatively small overhead with respect
+to CPU time and memory requirements, it lends itself
+well for application within resource-constrained 
+environments. However, the efficiency of 
+SFL comes at the cost of a limited
+diagnostic accuracy. 
+As an indication, in one of the 
+experiments described in 
+\cite{sfltaicpart}, 
+on average
+20\% of a program still needs to be inspected after the
+diagnosis.
+
+\section{Failures, Errors, and Faults}
+\label{s:failuresErrorsFaults}
+A \emph{failure} is an event that occurs when delivered service
+deviates from correct service. An \emph{error} is a system
+state that may cause a failure. A \emph{fault} is the cause of
+an error in the system.
+Since we focus on computer programs, faults are bugs in the program code, and failures occur
+when the output for a given input deviates from the
+specified output for that input.
+
+\newpage
+
+\lstinputlisting
+	[captionpos=b, label=l:rationalSort, caption=A faulty C function for sorting rational numbers.]
+	{sources/RationalSort_snippet.c}
+	
+To illustrate these concepts, consider the C 
+function in Listing \ref{l:rationalSort}. 
+It is meant to sort, using the 
+bubble sort algorithm, a sequence of \verb|n| rational numbers
+whose numerators and denominators are stored in the
+parameters \verb|num| and \verb|den|, respectively. There is a fault
+(bug) in the swapping code within the body of the if
+statement: only the numerators of the rational 
+numbers are swapped while the denominators are left in
+their original order. In this case, a failure occurs
+when \verb|RationalSort| changes the contents of its 
+argument arrays in such a way that the result is not a
+sorted version of the original. An error occurs after
+the code inside the conditional statement is executed,
+while \verb|den[j]| $\neq$ \verb|den[j+1]|. Such errors can be 
+temporary, and do not automatically lead to failures. For
+example, if we apply RationalSort to the sequence
+$\langle \frac{4}{1}, \frac{2}{2}, \frac{0}{1} \rangle$,
+an error occurs after the first two 
+numerators are swapped. However, this error is "canceled" by
+later swapping actions, and the sequence ends up being
+sorted correctly.
+
+Error detection is a prerequisite for SFL: we must know
+that something is wrong before we can try to locate
+the responsible fault. Failures constitute a 
+rudimentary form of error detection, but many errors remain
+latent and never lead to a failure. An example of a
+technique that increases the number of errors that can
+be detected is array bounds checking. Failure 
+detection and array bounds checking are both examples of
+generic error detection mechanisms, that can be 
+applied without detailed knowledge of a program. Other
+examples are the detection of null pointer handling,
+malloc problems, and deadlock detection in concurrent
+systems. Examples of program specific mechanisms are
+precondition and postcondition checking, and the use
+of assertions.
+
+The Barinel toolset supports instrumenting for 
+automatic error detection, which will be discussed in
+Chapter \ref{c:AutomaticErrorDetection}.
+
+\section{Program Spectra}
+A program spectrum is a collection of data that
+provides a specific view on the dynamic behavior of
+software. This data is collected at run-time, and 
+typically consist of a number of counters or 
+flags for the
+different parts of a program. Many different forms of
+program spectra exist, some of which are supported by the Barinel toolset. 
+In this example
+we work with so-called block hit spectra.
+
+A block hit spectrum contains a 
+flag for every block
+of code in a program, that indicates whether or not that
+block was executed in a particular run. With a block of
+code we mean a C language statement, where we do not
+distinguish between the individual statements of a 
+compound statement, but where we do distinguish between
+the cases of a switch statement. As an illustration, we
+have identified the blocks of code in Listing \ref{l:rationalSort}.
+
+
+\section{Fault Localization}
+The hit spectra of \emph{N} runs constitute a binary matrix,
+whose columns correspond to \emph{M} different parts (blocks
+in our case) of the program. The 
+information in which runs an error was detected 
+constitutes another column vector, the error vector. This
+vector can be thought to represent a hypothetical part
+of the program that is responsible for all observed 
+errors. 
+This is visualized in Figure \ref{fig:Ae}.
+Fault localization essentially consists in 
+identifying the part whose column vector resembles the error
+vector most.
+
+\begin{figure}[h!]
+	\begin{center}
+	\begin{tabular}{c c c}
+							&					& error \\
+							& $M$ components	& detection \\
+			$N$ spectra 	& 
+		$ \left[
+		\begin{array}{c c c c}
+			a_{11} & a_{12} & \ldots & a_{1M} \\
+			a_{21} & a_{22} & \ldots & a_{2M} \\
+			\vdots & \vdots & \ddots & \vdots \\
+			a_{N1} & a_{N2} & \ldots & a_{NM} \\
+		\end{array}
+		\right] $
+		&
+		$ \left[
+		\begin{array}{c}
+			e_1 \\
+			e_2 \\
+			\vdots \\
+			e_N \\
+		\end{array}
+		\right] $
+		\\
+	\end{tabular}
+	\caption{Input to SFL}
+	\label{fig:Ae}
+	\end{center}
+\end{figure}
+
+In the field of data clustering, resemblances between
+vectors of binary, nominally scaled data, such as the
+columns in our matrix of program spectra, are 
+quantified by means of similarity coefficients.
+By default, the Barinel toolset uses the Ochiai coefficient
+$s_O$, used in the molecular biology domain,
+since this coefficient performed best in experiments
+\cite{sfltaicpart}:\\
+\begin{center}
+$s_O(j) = \frac{n_{11}(j)}{\sqrt{(n_{11}(j)+n_{01}(j))*(n_{11}(j)+n_{10}(j))}}$\\
+\end{center}
+where $n_{pq}(j)$ indicates the number of runs in which block \emph{j} 
+has been touched during the execution, denoted by $p \in \{0,1\}$,
+and where the runs are failed or passed, indicated by $q \in \{0,1\}$:
+\begin{center}
+\begin{tabular}{c|c|c}
+$n$ & touched & run \\
+\hline
+$n_{00}$ & no & passed \\
+$n_{10}$ & yes & passed \\
+$n_{01}$ & no & failed \\
+$n_{11}$ & yes & failed \\
+\end{tabular}
+\end{center}
+
+Under the assumption that a high similarity to the
+error vector indicates a high probability that the corresponding parts of the software cause the detected
+errors, the calculated similarity coefficients rank the
+parts of the program with respect to their likelihood of
+containing the faults.
+
+To illustrate the approach, suppose that we 
+apply the \verb|RationalSort| function to the input sequences
+$I_1$, \ldots ,$I_6$ (see below). The block hit spectra for these
+runs are as follows ('1' denotes a hit), where block 5
+corresponds to the body of the \verb|RationalGT| function,
+which has not been shown in Listing \ref{l:rationalSort}.
+\begin{center}
+\begin{tabular}{l|c c c c c|c}
+\multicolumn{1}{c}{} & \multicolumn{5}{c}{block} & \\
+input & 1 & 2 & 3 & 4 & 5 & error \\
+\hline
+$I_1 = \langle \rangle$ 
+& 1 & 0 & 0 & 0 & 0 & 0 \\
+$I_2 = \langle \frac{1}{4} \rangle$ 
+& 1 & 1 & 0 & 0 & 0 & 0 \\
+$I_3 = \langle \frac{2}{1}, \frac{1}{1} \rangle$ 
+& 1 & 1 & 1 & 1 & 1 & 0 \\
+$I_4 = \langle \frac{4}{1}, \frac{2}{2}, \frac{0}{1} \rangle$ 
+& 1 & 1 & 1 & 1 & 1 & 0 \\
+$I_5 = \langle \frac{3}{1}, \frac{2}{2}, \frac{4}{3}, \frac{1}{4} \rangle$ 
+& 1 & 1 & 1 & 1 & 1 & 1 \\
+$I_6 = \langle \frac{1}{4}, \frac{1}{3}, \frac{1}{2}, \frac{1}{1} \rangle$ 
+& 1 & 1 & 1 & 0 & 1 & 0 \\
+\hline
+\multicolumn{1}{c|}{$s_O$} & $.40$ & $.44$ & $.50$ & $.58$ & $.50$ & \\
+\end{tabular}
+\end{center}
+
+$I_1$, $I_2$, and $I_6$ are already sorted, and lead to passed
+runs. $I_3$ is not sorted, but the denominators in this
+sequence happen to be equal, hence no error occurs. $I_4$
+is the example from Section \ref{s:failuresErrorsFaults}: 
+an error occurs during
+its execution, but goes undetected. For $I_5$ the program
+fails, since the calculated result is 
+$\langle \frac{1}{1}, \frac{2}{2}, \frac{4}{3}, \frac{3}{4} \rangle$
+instead of 
+$\langle \frac{1}{4}, \frac{2}{2}, \frac{4}{3}, \frac{3}{1} \rangle$
+, which is a clear indication that an error
+has occurred. For this data, the calculated similarity
+coefficient $s_O$ (correctly)
+identifies block 4 as the most likely location of the fault.
+In general, however, the faulty component(s) may be outranked
+by other components, entailing non-zero search effort by the users.
+Research has shown that for small programs ($O(100)$ lines) 
+$5 - 20 \%$ of the code remains to be inspected by the user \cite{ZAGGECBS:07}.
+However, for large programs this fraction drops to less than a percent \cite{ijcai09},
+making SFL an interesting debugging aid.
+

@@ -1,0 +1,170 @@
+
+\documentclass[letterpaper]{report}
+
+\usepackage{listings}
+\usepackage{graphicx}
+
+
+\newenvironment{exercise}[1]
+{\par\vspace{12pt}\noindent\textbf{Exercise \footnotesize{(#1)}}\\\begin{itshape}\begin{small}\noindent}
+{\end{small}\end{itshape}}
+
+\title{Zoltar Tutorial}
+\date{}
+\author{Tom Janssen\\
+	December 17, 2009\\
+	Software Technology Department\\
+	Delft University of Technology}
+
+\begin{document}
+
+\maketitle{}
+\lstset{language=C, 
+		basicstyle=\small, 
+		frame=single, 
+		frameround=tttt,
+		numbers=left, 
+		numberstyle=\tiny, 
+		xleftmargin=0cm, 
+		xrightmargin=0cm,
+		float=h!}
+
+		
+\begin{abstract}
+
+Zoltar is a toolset for automatic software fault localization developed at 
+the Software Technology Department of the Delft University of Technology.
+It provides the means to automatically instrument source code of various types of software
+in order to produce runtime information that is analyzed using 
+a spectrum-based fault localization technique to produce a ranked list of likely faulty locations.
+This tutorial provides the necessary information to be able to install, use and improve on the
+Zoltar toolset.
+\end{abstract}
+
+
+\tableofcontents{}
+
+
+%---------------------------------------------------------------------------------
+\chapter*{Acknowledgements}
+The author would like to express his gratitude to prof. dr. ir. Arjan van Gemund and
+dr. Rui Maranhao for their guidance in writing this tutorial.
+Sincere gratitude also goes to the Embedded Systems Institute (ESI), especially
+to Hristina Moneva and Jozef Hooman for their reviews and advise.
+
+
+%---------------------------------------------------------------------------------
+\chapter{Introduction}
+\label{c:Introduction}
+
+\input{introduction}
+
+%---------------------------------------------------------------------------------
+\chapter{Spectrum-based Fault Localization}
+\label{c:SFL}
+
+\input{sfl}
+
+%---------------------------------------------------------------------------------
+\chapter{Installation}
+\label{c:Installation}
+
+\input{installation}
+ 
+%---------------------------------------------------------------------------------
+\chapter{Example Program Analysis}
+\label{c:ExampleProgramAnalysis}
+
+\input{exampleprogramanalysis}
+  
+%---------------------------------------------------------------------------------
+\chapter{Spectrum Generation}
+\label{c:ProgramSpectrumGeneration}
+
+\input{programspectrumgeneration}
+ 
+%---------------------------------------------------------------------------------
+\chapter{Automatic Error Detection}
+\label{c:AutomaticErrorDetection}
+
+\input{automaticerrordetection}
+ 
+%---------------------------------------------------------------------------------
+\chapter{Analyzing Large Programs}
+\label{c:AnalyzingLargePrograms}
+
+%\emph{This chapter will discuss the instrumentation and analysis of
+%large programs, consisting of many source files. 
+%Partial instrumentation is supported by the Zoltar toolset.}
+\input{analyzinglargeprograms}
+
+%---------------------------------------------------------------------------------
+\chapter{Batch Execution}
+\label{c:BatchExecution}
+
+%\emph{This chapter will contain information on the support for
+%command line input and output to enable batch execution for large 
+%test sets.}
+\input{batchexecution}
+
+
+%---------------------------------------------------------------------------------
+%---------------------------------------------------------------------------------
+\appendix
+
+%---------------------------------------------------------------------------------
+% \chapter{Spectrum-based Fault Localization}
+% \label{c:SFL}
+
+% \input{tech_sfl}
+
+%---------------------------------------------------------------------------------
+\chapter{Writing Instrumentation Passes}
+\label{c:WritingInstrumentationPasses}
+
+\input{tech_instrumentationpasses}
+
+%---------------------------------------------------------------------------------
+\chapter{Writing Fault Screeners}
+\label{c:WritingFaultScreeners}
+
+\input{tech_screeners}
+
+%---------------------------------------------------------------------------------
+%\chapter{Instrumentation Overhead}
+%\label{c:InstrumentationOverhead}
+%
+%\input{tech_instrumentationoverhead}
+%
+%---------------------------------------------------------------------------------
+
+\begin{thebibliography}{99}
+
+\bibitem{sfltaicpart}
+Rui Abreu and Peter Zoeteweij and Arjan J.C. van Gemund, 
+"On the Accuracy of Spectrum-based Fault Localization",
+In \emph{Proceedings Testing: Academia and Industry Conference - Practice And Research Techniques (TAIC PART'07)}
+Windsor, United Kingdom, September 2007.
+
+\bibitem{trader}
+Embedded Systems Institute, 
+Trader project website,
+\verb|http://www.esi.nl/trader/|.
+
+\bibitem{ijcai09}
+R.~Abreu, P.~Zoeteweij, and A.~J.~C. van Gemund.
+\newblock A new {B}ayesian approach to multiple intermittent fault diagnosis.
+\newblock In {\em Proceedings of the International Joint Conference on
+  Artificial Intelligence (IJCAI'09)}, Pasadena, California, USA, 11 -- 17 July
+  2009. AAAI Press.
+  
+\bibitem{ZAGGECBS:07}
+P.~Zoeteweij, J.~Pietersma, R.~Abreu, A.~Feldman, and A.~J. van Gemund.
+\newblock Automated fault diagnosis in embedded software.
+\newblock In {\em Proceedings of the the ESI / Bits \& Chips Embedded Systems
+  Conference}, October 17 -- 18 2007.
+\newblock Eindhoven, the Netherlands.
+  
+\end{thebibliography}
+
+\end{document}

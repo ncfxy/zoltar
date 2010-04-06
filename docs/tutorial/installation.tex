@@ -1,0 +1,121 @@
+
+The Zoltar tool set depends on the Low Level Virtual Machine framework and
+is currently only known to be compatible with version 2.4.
+This version of \verb|llvm| can be downloaded from 
+\verb|http://llvm.org| and can be installed according to their instructions.
+Also, make sure the \verb|ncurses| and \verb|libgtk-2.0dev| packages are
+installed on your system.
+At the time of writing this tutorial, the tools are only tested on linux (Ubuntu and Fedora).
+
+\section{Installing llvm}
+The following shows an example of installing the \verb|llvm| tools.
+This serves as a guideline to quickly get a working toolset,
+but does not cover all details and is not guaranteed to work on your system.
+It is recommended to look at the getting-started guide on the \verb|llvm| website:\\
+\verb|  http://llvm.org/docs/GettingStarted.html|
+
+First, download the \verb|llvm| version 2.4 sources and the
+\verb|llvm-gcc frontend| sources.
+The latter is required to compile C programs using \verb|llvm|.
+Both are located at\\
+\verb|  http://llvm.org/releases/download.html#2.4|\\
+Next, unpack both using\\
+\verb|  # tar -xzf llvm-2.4.tar.gz|\\
+\verb|  # tar -xzf llvm-gcc-4.2-2.4.source.tar.gz|\\
+Make an object directory and an install directory for llvm:\\
+\verb|  # mkdir llvm-obj|\\
+\verb|  # mkdir llvm-install|\\
+Install \verb|llvm|:\\
+\verb|  # cd llvm-obj|\\
+\verb|  # ../llvm-2.4/configure|\\
+\verb|  # make|\\
+At this point, an \verb|llvm| version without gcc-frontend is built.
+To make the gcc-frontend, however, we need this installation of \verb|llvm|.
+Make an object directory and an install directory for \verb|llvm-gcc| as well:\\
+\verb|  # cd ..|\\
+\verb|  # mkdir llvm-gcc-obj|\\
+\verb|  # mkdir llvm-gcc-install|\\
+and configure it to use the \verb|llvm| we have just installed.\\
+\verb|  # cd llvm-gcc-obj|\\
+\verb|  # ../llvm-gcc4.2-2.4.source/configure \ |\\
+\verb|  > --prefix=`pwd`/../llvm-gcc-install --program-prefix=llvm- \ |\\
+\verb|  > --enable-llvm=`pwd`/../llvm-obj --enable-languages=c,c++ |\\
+\verb|  # make|\\
+\verb|  # make install|\\
+After this, \verb|llvm| must be reconfigured to include \verb|llvm-gcc|.\\
+\verb|  # cd ../llvm-obj|\\
+\verb|  # ../llvm-2.4/configure --prefix=`pwd`/../llvm-install \ |\\
+\verb|  > --withllvmgccdir=`pwd`/../llvm-gcc-install|\\
+\verb|  # make |\\
+\verb|  # make install |
+
+The above procedure will have created two installation directories,
+\verb|llvm-install| and \verb|llvm-gcc-install|.
+The \verb|bin| directories of both should be in the \verb|PATH| environment,
+enabling a system wide call to the \verb|llvm| tools.
+
+
+\section{Installing Zoltar}
+
+The source package can be downloaded from \verb|http://fdir.org|.
+Unpack it with \\
+\verb|  # tar -xzf zoltar.tar.gz|\\
+Inside the unpacked directory run \\
+\verb|  # ./configure --with-llvmsrc=<LLVMSRCDIR> \|\\
+\verb|  > --with-llvmobj=<LLVMOBJDIR> --prefix=<INSTALLDIR>|\\
+where \verb|<LLVMSRCDIR>| and
+\verb|<LLVMOBJDIR>| should be the directory containing the 
+\verb|llvm| source files and \verb|llvm| object files respectively
+(\verb|/path/to/llvm-2.4| and \verb|/path/to/llvm-obj| in the previous section).
+\verb|<INSTALLDIR>| should be the place where you want the tool binaries and libraries to
+be located.
+Next, build and install the tool set using \\
+\verb|  # make|\\
+\verb|  # make install|\\
+At this point the Zoltar tools are installed in the \verb|bin| directory of \verb|<INSTALLDIR>|
+and the libs are installed in the \verb|lib| directory.
+Make sure to include the \verb|bin| directory in the \verb|PATH| environment 
+and to include the \verb|lib| dir in the library search path (using libtool) or, alternatively,
+using the \verb|-L/path/to/lib| option during linking, or
+copy the \verb|*.so*| files to a library search path, such as \verb|/usr/lib|
+(this is not recommended and is not seen as a general solution, though).
+In the remainder of the tutorial it is assumed that the linker can find the libraries.
+
+The resulting libraries and binaries are given in Table \ref{t:LibsAndTools} 
+along with a short description.
+
+\begin{table}
+  \begin{tabular}{l|l}
+    \hline
+	\verb|libinstrument| & library which should be linked to the instrumented program \\
+	\verb|libpasses|     & library with instrumentation passes loaded by the \verb|instrument| tool \\
+	\verb|instrument|    & instrumentation tool \\
+	\verb|zoltar|       & console based program analysis and configuring tool \\
+	\verb|xzoltar|      & source code visualization of program analysis \\
+    \hline
+  \end{tabular}
+  \caption{Description of libraries and tools}
+  \label{t:LibsAndTools}
+\end{table}
+
+
+\section{Development Build}
+  
+To enable development of the Zoltar tools a debug installation is available.
+This will enable debugging context to be compiled within the binaries and libraries,
+which will aid in developing and debugging the toolset.
+To build the debug version of the Zoltar tool set
+also \verb|llvm| needs to be built in debug mode.
+To do this, add the \verb|ENABLE_OPTIMIZED=0| option to the \verb|make|
+commands while building the final version of \verb|llvm| (with llvm-gcc linked).\\
+\verb|  # make ENABLE_OPTIMIZED=0| \\
+\verb|  # make install ENABLE_OPTIMIZED=0| \\
+This debug install procedure has then be done for the Zoltar toolset as well.
+Note that \verb|llvm| has to be built in debug mode before building Zoltar in debug mode,
+since the latter requires certain libraries of the debug installation of \verb|llvm|.
+
+Within the directory of each tool or library in the Zoltar package one can type
+\verb|make| to build a release version of that particular tool or library or type
+\verb|make ENABLE_OPTIMIZED=0| to build a debug version.
+
+

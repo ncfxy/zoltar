@@ -1,0 +1,61 @@
+
+In realistic cases, tests are usually performed in an automated way,
+using a large test suite.
+The Zoltar toolset offers command line input, 
+next to the interactive user interface, 
+to be able to process a large amount of tests using a script.
+
+During the runtime data gathering process, 
+the script can compare the output with an expected output,
+or use some other means of error detection.
+The resulting passing or failing of a run
+can be recorded in a separate file 
+(writing a 1 for a passed run and a 0 for a failed run).
+Additionally, if instrumented and trained for 
+automatic error detection,
+the runs in which invariants are compromised
+are marked as failed within the datafile.
+
+The external \verb|passfail| file can be given as input
+to the \verb|zoltar| and \verb|xzoltar| tools,
+which combine the information on failing runs from
+the passfail file and the datafile.
+A run which is marked as failed in either file is
+considered failed in the analysis.
+
+The \verb|zoltar| tool is able to immediately return 
+SFL results when given the following command line options:\\
+\verb|  # zoltar --passfailfile=passfail.out --sfl=ochiai|\\
+This will return the complete listing of the ranked 
+fault locations, using external passfail information in
+the \verb|passfail.out| file.
+This list can be in the order of thousands, 
+for example, if a realistically sized program
+is instrumented on the basic block level.
+This list can be cut off using an additional argument
+on the command line:\\
+\verb|  # zoltar --passfailfile=passfail.out --sfl=ochiai -n10|\\
+This will result in a ranked list of program locations
+limited to ten results, given as output in the console (on \verb|stdout|).
+This feature can be used for intermediate results in 
+automated testing of a program using a large test suite.
+With information of more test runs this intermediate result
+will typically be improved.
+
+The index of the spectrum on which the SFL technique is applied,
+can be set using the \verb|-i| command line argument.
+For example, if a program is instrumented to generate 
+spectra for basic blocks and for def-use pairs,\\
+\verb|  # zoltar --sfl=ochiai -n10 -i1|\\
+will immediately return the first ten SFL results
+of the ranked list of def-use locations,
+given that the basic block spectrum has index 0
+and the def-use spectrum has index 1.
+These indices depend on the order in which the instrumentation passes
+are given in the instrumentation command (see Section \ref{s:instrumentation}).
+
+Using an external passfail file one can imagine scripts that
+will execute a large number of tests, taking days or weeks to complete, 
+while producing intermediate results for early analysis.
+The support of an external passfail file and the command line functionality 
+make the Zoltar toolset flexible and fit for many test situations.

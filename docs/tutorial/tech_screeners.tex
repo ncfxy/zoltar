@@ -1,0 +1,70 @@
+
+In appendix \ref{s:appendixInvariantType}
+the instrumentation of invariant types was discussed.
+The \texttt{\_handleInvariantXXX} functions are actually calls to
+the instrumentation library which handles checking the value of 
+the instrumented variables.
+Within the Zoltar source code this is done in the \texttt{libinterface.c}
+file, which serves as the interface to the instrumented program.
+
+
+The \texttt{libinterface.c} file is a vital part of the Zoltar instrumentation library. 
+It contains the following functions:
+\begin{itemize}
+\item{the registration functions for the invariant types and the program spectra}
+ \begin{itemize}
+ \item{\texttt{\_registerInvariantType}}
+ \item{\texttt{\_registerSpectrum}}
+ \end{itemize}
+\item{functions for handling invariant variable changes}
+ \begin{itemize}
+ \item{\texttt{\_handleInvariantChangeDouble}}
+ \item{\texttt{\_handleInvariantChangeInt}}
+ \item{\texttt{\_handleInvariantChangeUInt}}
+ \item{\texttt{\_handleInvariantChangePtr}}
+ \item{\texttt{\_handleInvariantIncrement}}
+ \end{itemize}
+\item{the handling of a spectrum update}
+ \begin{itemize}
+ \item{\texttt{\_updateSpectrum}}
+ \end{itemize}
+\item{memory protection functions}
+ \begin{itemize}
+ \item{\texttt{\_handleStore}}
+ \item{\texttt{\_handleMemFail}}
+ \end{itemize}
+\item{invariant violation handlers}
+ \begin{itemize}
+ \item{\texttt{\_handleInvariantBitmaskError}}
+ \item{\texttt{\_handleInvariantRangeError}}
+ \end{itemize}
+\end{itemize}
+
+The invariant variable change handlers are responsible for checking 
+if the invariant still holds.
+This is currently done using a range check and a bitmask check,
+however, other techniques can be added to the code.
+The checks are only performed if the corresponding screener is activated.
+This is done using the \texttt{zoltar} tool, which saves this setting in the datafile.
+If, for example, the invariant increment handler is called 
+and the range screener is active and the variable value is greater than is allowed,
+then the \texttt{\_handleInvariantRangeError} function is called.
+
+The \texttt{\_handleInvariantBitmaskError} and \texttt{\_handleInvariantRangeError}
+functions take care of counting the number of times each invariant is violated.
+A maximum number of times an invariant may be violated is defined.
+Whenever this maximum is reached, the functions will issue an abort of the program,
+shutting down the original program, while finishing the bookkeeping of the analysis data.
+The range type invariant handler will abort immediately if the invariant is configured 
+to be timer updated.
+The timer variable will only grow, so waiting until the maximum number of errors is reached
+is useless and confusing.
+
+Additional invariant type checking can be implemented in the \texttt{libinterface.c} file
+by adding checks in the invariant change handlers and by adding a corresponding error handler.
+This new type can be checked always, or can be activated per instrumented invariant variable.
+In the latter case, the invariant structure should be modified to contain a flag for the activation
+of the new type and the \texttt{zoltar} tool should be updated as well to be able to toggle this activation.
+This, however, goes beyond this brief explanation of fault screeners and is left to the reader.
+With the discussed structure of the \texttt{libinterface.c} file one should be able
+to make an addition to the Zoltar toolset and modify it according to specific needs.
