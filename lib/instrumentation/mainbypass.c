@@ -10,6 +10,7 @@
   #include <unistd.h>
 #endif
 
+#include <libgen.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
@@ -412,15 +413,22 @@ void _aborthandler() {
 }
 
 int main(int argc, char* argv[]) {
-  int retvalue = 0;
-  char *dataFileName, *dir;
+  int retvalue = 0, rlret;
+  char *dataFileName, *dir, buf[1024];
   
   signal(SIGSEGV, _handleSignal);
   signal(SIGINT, _handleSignal);
 
   //sprintf(dataFileName, "%s.dat", argv[0]);
 
-  dir = getcwd(NULL, 0);
+  rlret = readlink("/proc/self/exe", buf, 1023);
+  if (rlret != -1) {
+    buf[rlret] = 0;
+    dir = dirname(buf);
+  } else {
+    dir = getcwd(NULL, 0);
+  }
+  fprintf(stderr, "Writing datafile in %s.\n", dir);
   dataFileName = (char*)"datafile.dat";
   datfname = malloc(strlen(dir) + strlen(dataFileName) + 2);
   sprintf(datfname, "%s/%s", dir, dataFileName);
