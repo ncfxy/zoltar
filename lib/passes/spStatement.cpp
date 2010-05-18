@@ -109,6 +109,7 @@ bool SpStatementInstrumenter::runOnModule(Module &M) {
           if (maxComponents < line) {
             maxComponents = line;
           }
+          maxComponents += 1; // base 0
         }
       }
     }
