@@ -101,7 +101,7 @@ void _addSpectrum(unsigned int timestamp, unsigned int index, unsigned int nComp
   SPECTRUM(index).name = name;
   if (_instrumentationInfo != oldInstrumentationInfo) {
     /* reallocation to other block */
-    int diff = (char*)_instrumentationInfo - (char*)oldInstrumentationInfo;
+    long diff = (char*)_instrumentationInfo - (char*)oldInstrumentationInfo;
     for(i=0; i<MAX_SPECTRA; i++) {
       if(SPECTRUM(i).data != 0) {
         SPECTRUM(i).data = (void*)((char*)SPECTRUM(i).data + diff);
