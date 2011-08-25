@@ -8,6 +8,6 @@ LEVEL=..
 #
 # List all of the subdirectories that we will compile.
 #
-DIRS=common passes instrumentation sfl
+DIRS=common passes mutation instrumentation sfl
 
 include $(LEVEL)/Makefile.common

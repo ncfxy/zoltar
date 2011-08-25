@@ -1,4 +1,4 @@
-##===- tools/opt/Makefile ------------------------------*- Makefile -*-===##
+##===- lib/Transforms/Hello/Makefile -----------------------*- Makefile -*-===##
 # 
 #                     The LLVM Compiler Infrastructure
 #
@@ -6,14 +6,14 @@
 # License. See LICENSE.TXT for details.
 # 
 ##===----------------------------------------------------------------------===##
-CXXFLAGS += -fexceptions
+
+CXXFLAGS+=-fexceptions
 
 LEVEL = ../..
-TOOLNAME = instrument
-#REQUIRES_EH := 1
-
-LINK_COMPONENTS := bitreader bitwriter transformutils
-USEDLIBS := passes.a mutation.a
+LIBRARYNAME = mutation
+SHARED_LIBRARY = 1
+ARCHIVE_LIBRARY = 1
+USEDLIBS = 
 
 include $(LEVEL)/Makefile.common
 

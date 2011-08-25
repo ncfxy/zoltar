@@ -132,7 +132,7 @@ void _addSpectrum(unsigned int timestamp, unsigned int index, unsigned int nComp
 }
 
 void _addInvariantType(unsigned int timestamp, unsigned int index, unsigned int nInvariants, char *name, char isTimerUpdated) {
-  unsigned int oldSize, addedSize, i;
+  unsigned long oldSize, addedSize, i;
   void *invariantTypeStart;
   void *oldInstrumentationInfo;
 

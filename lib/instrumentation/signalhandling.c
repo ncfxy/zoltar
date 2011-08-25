@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "config.h"
 #include "signalhandling.h"
 #include "instrumentationinfo.h"
 
@@ -17,6 +18,9 @@ void _handleSignal(int sigNum) {
       fprintf(stderr, "!! caught signal SIGINT\n");
       #endif
       break;
+    case SIGPROF:
+      fprintf(stderr, "Timeout.\n");
+      break;
     default:
       #ifdef DEBUG
       fprintf(stderr, "!! caught undefined signal\n");
@@ -29,11 +33,17 @@ void _handleSignal(int sigNum) {
       
   /* TODO: handle end-of-run */
   
+  #ifdef ENABLE_DATA_IO
+    _instrumentationInfo->passFail[_instrumentationInfo->run] = 0;
+    _instrumentationInfo->run++;
+    _finalize();
+  #endif
+  
   if(sigNum==SIGINT) {
     return;
   }
 
-  _destroyInstrumentationInfo();
+  //_destroyInstrumentationInfo();
 
   exit(0);
 }

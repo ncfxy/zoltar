@@ -30,10 +30,22 @@ char *cwd=NULL;
 char *datfname;
 
 void _startTiming() {
+  struct itimerval tv;
+  tv.it_interval.tv_sec = 0;
+  tv.it_interval.tv_usec = 100000;
+  tv.it_value.tv_sec = 0;
+  tv.it_value.tv_usec = 100000;
+  setitimer(ITIMER_PROF, &tv, NULL);
   gettimeofday(&_programStart, NULL);
 }
 
 void _stopTiming() {
+  struct itimerval tv;
+  tv.it_interval.tv_sec = 0;
+  tv.it_interval.tv_usec = 0;
+  tv.it_value.tv_sec = 0;
+  tv.it_value.tv_usec = 0;
+  setitimer(ITIMER_PROF, &tv, NULL);
   gettimeofday(&_programEnd, NULL);
 }
 
@@ -45,7 +57,7 @@ void _fprintTiming(FILE* f) {
     span.tv_sec -= 1;
     span.tv_usec += 1000000;
   }
-  fprintf(f, "execution time: %u.%06u\n", (unsigned int)span.tv_sec, (unsigned int)span.tv_usec);
+  /*fprintf(f, "execution time: %u.%06u\n", (unsigned int)span.tv_sec, (unsigned int)span.tv_usec);*/
 }
 
 void _initialReadDataFile() {
@@ -314,9 +326,12 @@ pthread_t t_timer;
 pthread_mutex_t libMutex;
 void _finalize() {
 
+   fprintf(stderr, "finalizing...\n");
+  #ifdef THREAD_SAFE
     _running = 0;
-  pthread_join(t_timer, NULL);
-
+    pthread_join(t_timer, NULL);
+  #endif
+  
   #ifdef ENABLE_DATA_IO
     _updateDataFile();
   #endif
@@ -387,10 +402,10 @@ void _aborthandler() {
 
   /* in training mode, do not save the failing run */
   /* TODO: what about the changed invariants, keep a tmp? */
-  if(!_instrumentationInfo->training) {
+  /*if(!_instrumentationInfo->training) {*/
     _instrumentationInfo->passFail[_instrumentationInfo->run] = 0;
     _instrumentationInfo->run++;
-  }
+  /*}*/
 
   _stopTiming();
 
@@ -418,6 +433,9 @@ int main(int argc, char* argv[]) {
   
   signal(SIGSEGV, _handleSignal);
   signal(SIGINT, _handleSignal);
+  signal(SIGTERM, _handleSignal);
+  signal(SIGFPE, _handleSignal);
+  signal(SIGPROF, _handleSignal);
 
   //sprintf(dataFileName, "%s.dat", argv[0]);
 
@@ -428,7 +446,7 @@ int main(int argc, char* argv[]) {
   } else {
     dir = getcwd(NULL, 0);
   }
-  fprintf(stderr, "Writing datafile in %s.\n", dir);
+  /*fprintf(stderr, "Writing datafile in %s.\n", dir);*/
   dataFileName = (char*)"datafile.dat";
   datfname = malloc(strlen(dir) + strlen(dataFileName) + 2);
   sprintf(datfname, "%s/%s", dir, dataFileName);
@@ -502,6 +520,9 @@ int main(int argc, char* argv[]) {
     }
   #else
     retvalue = _main_original(argc, argv);
+    
+    _instrumentationInfo->passFail[_instrumentationInfo->run] = 1;
+    _instrumentationInfo->run++;
   #endif
 
   #ifdef THREAD_SAFE

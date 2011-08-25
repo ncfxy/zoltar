@@ -235,6 +235,10 @@ Constant *MemProtectionInstrumenter2::getOrInsertGlobal(Module &M, const std::st
 void MemProtectionInstrumenter2::instrumentStore(LLVMContext &C, BasicBlock::iterator Inst, Value* loc, Value *len) {
 
   Value *Loc = CastInst::CreatePointerCast(loc, Type::getInt32Ty(C), "st.cast", Inst);
+  Value *LenCast = len;
+  if (Loc->getType() != len->getType()) {
+    LenCast = CastInst::CreateIntegerCast(len, Type::getInt32Ty(C), false, "len.cast", Inst);
+  }
 
   // create three basic blocks for branch targets
   BasicBlock *BB = Inst->getParent();
@@ -265,9 +269,10 @@ void MemProtectionInstrumenter2::instrumentStore(LLVMContext &C, BasicBlock::ite
                                             "st.cast", 
                                             &bbCmp2->back());
   //  compute end=loc+tsz
+
   Value *ValE = BinaryOperator::Create(Instruction::Add, 
                                        Loc,
-                                       len, "valE", &bbCmp2->back());
+                                       LenCast, "valE", &bbCmp2->back());
   //  cmp end<memstart
   Value *VeLtMs = new ICmpInst(&bbCmp2->back(),
                                ICmpInst::ICMP_ULT, 
@@ -281,7 +286,7 @@ void MemProtectionInstrumenter2::instrumentStore(LLVMContext &C, BasicBlock::ite
   // BB Call:
   std::vector<Value*> Args(2);
   Args[0] = Loc;
-  Args[1] = len;
+  Args[1] = LenCast;
   CallInst::Create(FailFn, Args.begin(), Args.end(), "", &bbCall->back());
   // continues to bbStore
 }
