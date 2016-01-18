@@ -14,7 +14,7 @@
 
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
-#include "llvm/ModuleProvider.h"
+//#include "llvm/ModuleProvider.h"
 #include "llvm/PassManager.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Assembly/PrintModulePass.h"
@@ -26,6 +26,9 @@
 #include "llvm/System/Signals.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/raw_os_ostream.h"
 
 #include "llvm/Support/SystemUtils.h"
 
@@ -135,8 +138,10 @@ int main(int argc, char **argv) {
     raw_ostream *Out = &outs();  // Default to printing to stdout...
     if (OutputFilename != "-") {
       std::string ErrorInfo;
-      Out = new raw_fd_ostream(OutputFilename.c_str(), /*Binary=*/true,
-                               Force, ErrorInfo);
+      /*TODO: solve this problem */
+      //Out = new raw_fd_ostream(OutputFilename.c_str(), /*Binary=*/true,
+       //                        Force, ErrorInfo);
+      Out = new raw_fd_ostream(OutputFilename.c_str(),ErrorInfo,0);
       if (!ErrorInfo.empty()) {
         errs() << ErrorInfo << '\n';
         if (!Force)
@@ -153,7 +158,7 @@ int main(int argc, char **argv) {
     // If the output is set to be emitted to standard out, and standard out is a
     // console, print out a warning message and refuse to do it.  We don't
     // impress anyone by spewing tons of binary goo to a terminal.
-    if (!Force && !NoOutput && CheckBitcodeOutputToConsole(Out,!Quiet)) {
+    if (!Force && !NoOutput && CheckBitcodeOutputToConsole(*Out,!Quiet)) {
       NoOutput = true;
     }
 
