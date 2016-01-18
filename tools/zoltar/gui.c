@@ -6,6 +6,7 @@
 #include <math.h>
 #include <ncurses.h>
 #include <menu.h>
+#include <curses.h>
 
 #include "gui.h"
 
