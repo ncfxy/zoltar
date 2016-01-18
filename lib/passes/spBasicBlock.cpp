@@ -4,7 +4,6 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/Value.h"
@@ -16,6 +15,7 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include <time.h>
 #include <fstream>
+#include <iostream>
 
 #include "indexManager.h"
 #include "contextManager.h"
@@ -23,6 +23,7 @@
 
 using namespace llvm;
 using std::ofstream;
+using namespace std;
 
 namespace {
   class SpBasicBlockInstrumenter : public ModulePass {
@@ -30,7 +31,7 @@ namespace {
     bool runOnModule(Module &M);
   public:
     static char ID;
-    SpBasicBlockInstrumenter() : ModulePass((intptr_t)&ID) {numBlocksInstrumented = 0;}
+    SpBasicBlockInstrumenter() : ModulePass(ID) {numBlocksInstrumented = 0;}
   };
 }
 
@@ -84,7 +85,8 @@ bool SpBasicBlockInstrumenter::runOnModule(Module &M) {
       // Loop through all instructions within basic block
       for (BasicBlock::iterator I = B->begin(), BE = B->end(); I != BE; I++) {
 
-        if(isa<DbgStopPointInst>(*I)) {
+    	  /*TODO: solve DbgStopPointInst problem*/
+        /*if(isa<DbgStopPointInst>(*I)) {
           DbgStopPointInst &DSPI = cast<DbgStopPointInst>(*I);
           std::string file, dir, name="-";
           llvm::GetConstantStringInfo(DSPI.getDirectory(), dir);
@@ -108,7 +110,7 @@ bool SpBasicBlockInstrumenter::runOnModule(Module &M) {
           CallInst::Create(SpFn, Args.begin(), Args.end(), "", I);
 
           break;
-        }
+        }*/
       }
     }
   }
@@ -116,7 +118,7 @@ bool SpBasicBlockInstrumenter::runOnModule(Module &M) {
   // add the registration of the instrumented spectrum points in the _registerAll() function
   addSpectrumRegistration(M, spectrumIndex, nComponents, "Basic_Blocks");
   
-  llvm::cerr << "instrument: " << nComponents << " basic blocks instrumented\n";
+  std::cerr << "instrument: " << nComponents << " basic blocks instrumented\n";
 
   // notify change of program 
   return true;

@@ -4,7 +4,6 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/Value.h"
@@ -18,6 +17,7 @@
 #include <time.h>
 #include <fstream>
 #include <sstream>
+#include <iostream>
 
 #include "indexManager.h"
 #include "contextManager.h"
@@ -25,13 +25,14 @@
 
 using namespace llvm;
 using std::ofstream;
+using namespace std;
 
 namespace {
   class SpDefUseInstrumenter : public ModulePass {
     bool runOnModule(Module &M);
   public:
     static char ID;
-    SpDefUseInstrumenter() : ModulePass((intptr_t)&ID) {}
+    SpDefUseInstrumenter() : ModulePass(ID) {}
   };
 }
 
@@ -130,12 +131,13 @@ bool SpDefUseInstrumenter::runOnModule(Module &M) {
               BasicBlock *parent = insertInst->getParent();
               BasicBlock::iterator inst = parent->begin();
               while(((Instruction *)inst) != insertInst  &&  inst != parent->end()) {
-                if(isa<DbgStopPointInst>(*inst)) {
+            	  /*TODO: solve DbgStopPointInst problem*/
+            	/*if(isa<DbgStopPointInst>(*inst)) {
                   DbgStopPointInst &DSPI = cast<DbgStopPointInst>(*inst);
                   llvm::GetConstantStringInfo(DSPI.getDirectory(), usedir);
                   llvm::GetConstantStringInfo(DSPI.getFileName(), usefile);
                   useline = DSPI.getLine();
-                }
+                }*/
                 inst++;
               }
 
@@ -166,7 +168,7 @@ bool SpDefUseInstrumenter::runOnModule(Module &M) {
   // add the registration of the instrumented spectrum points in the _registerAll() function
   addSpectrumRegistration(M, spectrumIndex, nUses, "Def-Use_Pairs");
   
-  llvm::cerr << "instrument: " << nDefs << " defines with a total number of " << nUses << " uses instrumented\n";
+  std::cerr << "instrument: " << nDefs << " defines with a total number of " << nUses << " uses instrumented\n";
 
   // notify change of program 
   return true;

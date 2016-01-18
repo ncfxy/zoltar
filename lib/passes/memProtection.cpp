@@ -4,7 +4,6 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/Value.h"
@@ -15,8 +14,10 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include <time.h>
+#include <iostream>
 
 using namespace llvm;
+using namespace std;
 
 namespace {
   class MemProtectionInstrumenter2 : public ModulePass {
@@ -27,7 +28,7 @@ namespace {
     TargetData *targetData;
   public:
     static char ID;
-    MemProtectionInstrumenter2() : ModulePass((intptr_t)&ID) {}
+    MemProtectionInstrumenter2() : ModulePass(ID) {}
   };
 }
 
@@ -215,7 +216,7 @@ bool MemProtectionInstrumenter2::runOnModule(Module &M) {
 */
   // notify change of program 
 
-  llvm::cerr << "instrument: " << instrumentedStores << " memory protection points instrumented\n";
+  std::cerr << "instrument: " << instrumentedStores << " memory protection points instrumented\n";
 
   return true;
 }

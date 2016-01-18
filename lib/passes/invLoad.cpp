@@ -4,7 +4,6 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/Value.h"
@@ -15,19 +14,21 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include <time.h>
+#include <iostream>
 
 #include "indexManager.h"
 #include "contextManager.h"
 #include "registration.h"
 
 using namespace llvm;
+using namespace std;
 
 namespace {
   class InvLoadInstrumenter : public ModulePass {
     bool runOnModule(Module &M);
   public:
     static char ID;
-    InvLoadInstrumenter() : ModulePass((intptr_t)&ID) {}
+    InvLoadInstrumenter() : ModulePass(ID) {}
   };
 }
 
@@ -92,13 +93,14 @@ bool InvLoadInstrumenter::runOnModule(Module &M) {
       for (BasicBlock::iterator I = B->begin(), BE = B->end(); I != BE; I++) {
 
         // remember information of the last known debug stoppoint
-        if(isa<DbgStopPointInst>(*I)) {
+        /*TODO: solve DbgStopPointInst problem*/
+        /* if(isa<DbgStopPointInst>(*I)) {
           DbgStopPointInst &DSPI = cast<DbgStopPointInst>(*I);
           
           llvm::GetConstantStringInfo(DSPI.getDirectory(), dir);
           llvm::GetConstantStringInfo(DSPI.getFileName(), file);
           line = DSPI.getLine();
-        }
+        }*/
 
         // Consider only load instructions
         if(isa<LoadInst>(*I)) {
@@ -133,12 +135,12 @@ bool InvLoadInstrumenter::runOnModule(Module &M) {
           // insert call to correct library function,
           // which depends on the type of the loaded value,
           // after the current load instruction
-          if(InstType->isInteger()) {
+          if(InstType->isIntegerTy()) {
             Args[0] = ConstantInt::get(Type::getInt32Ty(C), invariantTypeIndex);
             Args[1] = ConstantInt::get(Type::getInt32Ty(C), nInvariants++);
             Args[2] = CastInst::CreateIntegerCast(&LD, Type::getInt32Ty(C), true, "ld.cast", I);
             CallInst::Create(LoadIntegerFn, Args.begin(), Args.end(), "", I);
-          } else if(InstType->isFloatingPoint()) {
+          } else if(InstType->isFloatingPointTy()) {
             Args[0] = ConstantInt::get(Type::getInt32Ty(C), invariantTypeIndex);
             Args[1] = ConstantInt::get(Type::getInt32Ty(C), nInvariants++);
             Args[2] = CastInst::CreateFPCast(&LD, Type::getDoubleTy(C), "ld.cast", I);
@@ -164,7 +166,7 @@ bool InvLoadInstrumenter::runOnModule(Module &M) {
   // add the registration of the instrumented invariants in the _registerAll() function
   addInvariantTypeRegistration(M, invariantTypeIndex, nInvariants, "Loads", 0);
   
-  llvm::cerr << "instrument: " << nInvariants << " load operations instrumented\n";
+  std::cerr << "instrument: " << nInvariants << " load operations instrumented\n";
   
   // notify change of program 
   return true;

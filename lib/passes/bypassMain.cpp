@@ -4,7 +4,6 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/Value.h"
@@ -15,17 +14,19 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include <time.h>
+#include <iostream>
 
 #include "registration.h"
 
 using namespace llvm;
+using namespace std;
 
 namespace {
   class MainByPasser : public ModulePass {
     bool runOnModule(Module &M);
   public:
     static char ID;
-    MainByPasser() : ModulePass((intptr_t)&ID) {}
+    MainByPasser() : ModulePass(ID) {}
   };
 }
 

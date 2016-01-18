@@ -4,7 +4,6 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/Value.h"
@@ -16,6 +15,7 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include <time.h>
 #include <fstream>
+#include <iostream>
 
 #include "indexManager.h"
 #include "contextManager.h"
@@ -23,13 +23,14 @@
 
 using namespace llvm;
 using std::ofstream;
+using namespace std;
 
 namespace {
   class SpStatementInstrumenter : public ModulePass {
     bool runOnModule(Module &M);
   public:
     static char ID;
-    SpStatementInstrumenter() : ModulePass((intptr_t)&ID) {}
+    SpStatementInstrumenter() : ModulePass(ID) {}
   };
 }
 
@@ -83,7 +84,8 @@ bool SpStatementInstrumenter::runOnModule(Module &M) {
       // Loop through all instructions within basic block
       for (BasicBlock::iterator I = B->begin(), BE = B->end(); I != BE; I++) {
 
-        if(isa<DbgStopPointInst>(*I)) {
+    	  /*TODO: solve DbgStopPointInst problem*/
+        /*if(isa<DbgStopPointInst>(*I)) {
           DbgStopPointInst &DSPI = cast<DbgStopPointInst>(*I);
           std::string file, dir, name="-";
           llvm::GetConstantStringInfo(DSPI.getDirectory(), dir);
@@ -110,7 +112,7 @@ bool SpStatementInstrumenter::runOnModule(Module &M) {
             maxComponents = line;
           }
           maxComponents += 1; // base 0
-        }
+        }*/
       }
     }
   }
@@ -118,7 +120,7 @@ bool SpStatementInstrumenter::runOnModule(Module &M) {
   // add the registration of the instrumented spectrum points in the _registerAll() function
   addSpectrumRegistration(M, spectrumIndex, maxComponents, "Statement");
   
-  llvm::cerr << "instrument: " << maxComponents << " statements instrumented\n";
+  std::cerr << "instrument: " << maxComponents << " statements instrumented\n";
 
   // notify change of program 
   return true;

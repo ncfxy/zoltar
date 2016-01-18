@@ -4,7 +4,6 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/Value.h"
@@ -16,6 +15,7 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include <time.h>
 #include <fstream>
+#include <iostream>
 
 #include "indexManager.h"
 #include "contextManager.h"
@@ -23,6 +23,7 @@
 
 using namespace llvm;
 using std::ofstream;
+using namespace std;
 
 namespace {
   class SpFunctionInstrumenter : public ModulePass {
@@ -30,7 +31,7 @@ namespace {
     bool runOnModule(Module &M);
   public:
     static char ID;
-    SpFunctionInstrumenter() : ModulePass((intptr_t)&ID) {numFunctionsInstrumented = 0;}
+    SpFunctionInstrumenter() : ModulePass(ID) {numFunctionsInstrumented = 0;}
   };
 }
 
@@ -76,8 +77,8 @@ bool SpFunctionInstrumenter::runOnModule(Module &M) {
     
     Function::iterator fit = F->begin();
     BasicBlock::iterator bbit = fit->begin();
-
-    while(!isa<DbgFuncStartInst>(*bbit)) ++bbit;
+    /*TODO: solve DbgStopPointInst problem*/
+    /*while(!isa<DbgFuncStartInst>(*bbit)) ++bbit;
 
     // extract source file information from debug instrinsic
     DbgFuncStartInst &dfsi = cast<DbgFuncStartInst>(*bbit);
@@ -112,13 +113,13 @@ bool SpFunctionInstrumenter::runOnModule(Module &M) {
     Args[0] = ConstantInt::get(Type::getInt32Ty(C), spectrumIndex);
     Args[1] = ConstantInt::get(Type::getInt32Ty(C), nComponents++);
          
-    CallInst::Create(SpFn, Args.begin(), Args.end(), "", InsertPos);
+    CallInst::Create(SpFn, Args.begin(), Args.end(), "", InsertPos);*/
   }
 
   // add the registration of the instrumented spectrum points in the _registerAll() function
   addSpectrumRegistration(M, spectrumIndex, nComponents, "Functions");
 
-  llvm::cerr << "instrument: " << nComponents << " functions instrumented\n";
+  std::cerr << "instrument: " << nComponents << " functions instrumented\n";
 
   // notify change of program 
   return true;

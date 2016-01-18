@@ -4,7 +4,6 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/Value.h"
@@ -16,12 +15,14 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include <time.h>
+#include <iostream>
 
 #include "indexManager.h"
 #include "contextManager.h"
 #include "registration.h"
 
 using namespace llvm;
+using namespace std;
 
 namespace {
   class InvFunctionTimerInstrumenter : public ModulePass {
@@ -29,7 +30,7 @@ namespace {
     bool runOnModule(Module &M);
   public:
     static char ID;
-    InvFunctionTimerInstrumenter() : ModulePass((intptr_t)&ID) {numFunctionsInstrumented = 0;}
+    InvFunctionTimerInstrumenter() : ModulePass(ID) {numFunctionsInstrumented = 0;}
   };
 }
 
@@ -88,14 +89,15 @@ bool InvFunctionTimerInstrumenter::runOnModule(Module &M) {
     // try to get context information of loop
     std::string dir="-", file="-", name="-";
     int line = 0;
-    while (!isa<DbgStopPointInst>(InsertPos)) ++InsertPos;
+    /* TODO: solve DbgStopPointInst problem */
+    /*while (!isa<DbgStopPointInst>(InsertPos)) ++InsertPos;
     if(isa<DbgStopPointInst>(*InsertPos)) {
       DbgStopPointInst &DSPI = cast<DbgStopPointInst>(*InsertPos);
       
       llvm::GetConstantStringInfo(DSPI.getDirectory(), dir);
       llvm::GetConstantStringInfo(DSPI.getFileName(), file);
       line = DSPI.getLine();
-    }
+    }*/
     name = F->getName();
 
     // add source context of this invariant to context file
@@ -130,7 +132,7 @@ bool InvFunctionTimerInstrumenter::runOnModule(Module &M) {
   // add the registration of the instrumented invariants in the _registerAll() function
   addInvariantTypeRegistration(M, invariantTypeIndex, nInvariants, "Function Timer", 1);
 
-  llvm::cerr << "instrument: " << nInvariants << " functions instrumented\n";
+  std::cerr << "instrument: " << nInvariants << " functions instrumented\n";
 
   // notify change of program 
   return true;

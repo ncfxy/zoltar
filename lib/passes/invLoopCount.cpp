@@ -4,7 +4,6 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/Value.h"
@@ -15,12 +14,14 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include <time.h>
+#include <iostream>
 
 #include "indexManager.h"
 #include "contextManager.h"
 #include "registration.h"
 
 using namespace llvm;
+using namespace std;
 
 namespace {
   class InvLoopCountInstrumenter : public ModulePass {
@@ -29,7 +30,7 @@ namespace {
     void instrumentLoop(Loop *loop, Constant *loopInitFn, Constant *loopIncrFn, unsigned int invariantTypeIndex, unsigned int *loopIndex);
   public:
     static char ID;
-    InvLoopCountInstrumenter() : ModulePass((intptr_t)&ID) {}
+    InvLoopCountInstrumenter() : ModulePass(ID) {}
   };
 }
 
@@ -96,7 +97,7 @@ bool InvLoopCountInstrumenter::runOnModule(Module &M) {
   // add the registration of the instrumented invariants in the _registerAll() function
   addInvariantTypeRegistration(M, invariantTypeIndex, loopIndex, "Loop Counter", 0);
 
-  llvm::cerr << "instrument: " << loopIndex << " loops  instrumented\n";
+  std::cerr << "instrument: " << loopIndex << " loops  instrumented\n";
 
   // notify change of program 
   return true;
@@ -128,14 +129,15 @@ void InvLoopCountInstrumenter::instrumentLoop(Loop *loop, Constant *loopInitFn, 
     // try to get context information of loop
     std::string dir="-", file="-", name="-";
     int line = 0;
-    while (!isa<DbgStopPointInst>(incrPos)) ++incrPos;
+    /*TODO: solve DbgStopPointInst problem*/
+    /*while (!isa<DbgStopPointInst>(incrPos)) ++incrPos;
     if(isa<DbgStopPointInst>(*incrPos)) {
       DbgStopPointInst &DSPI = cast<DbgStopPointInst>(*incrPos);
       
       llvm::GetConstantStringInfo(DSPI.getDirectory(), dir);
       llvm::GetConstantStringInfo(DSPI.getFileName(), file);
       line = DSPI.getLine();
-    }
+    }*/
 
     // add source context of this invariant to context file
     ContextManager::addInvariantTypeContext(
