@@ -8,6 +8,6 @@ LEVEL=..
 #
 # List all of the subdirectories that we will compile.
 #
-DIRS=instrument runmut zoltar xzoltar
+DIRS=instrument  zoltar xzoltar    #runmut
 
 include $(LEVEL)/Makefile.common
