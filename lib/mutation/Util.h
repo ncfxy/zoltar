@@ -49,15 +49,15 @@ public:
     }
 
     inst_offset++;
-    
-    if(isa<DbgStopPointInst>(I)) {
+    /*TODO: solve DbgStopPointInst problem*/
+    /*if(isa<DbgStopPointInst>(I)) {
       DbgStopPointInst &DSPI = cast<DbgStopPointInst>(I);
       
       this->dir.clear(); this->file.clear();
       llvm::GetConstantStringInfo(DSPI.getDirectory(), this->dir);
       llvm::GetConstantStringInfo(DSPI.getFileName(), this->file);
       this->line = DSPI.getLine();
-    }
+    }*/
   }
   
   std::string getId() {

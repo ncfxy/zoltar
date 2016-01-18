@@ -3,6 +3,7 @@
 #include "Util.h"
 
 #include <iostream>
+#include <cstdlib>
 
 using namespace llvm;
 
@@ -32,7 +33,7 @@ NonConstantInc::isCompatible(BasicBlock::iterator &I) {
 
     
 	if (isAccumulator(I)) {
-        BOP = dynamic_cast<BinaryOperator*>(I->getOperand(0));
+        BOP = reinterpret_cast<BinaryOperator*>(I->getOperand(0));
         
         Value *Inc = BOP->getOperand(1);
                     
@@ -47,7 +48,7 @@ NonConstantInc::isCompatible(BasicBlock::iterator &I) {
 Value *
 NonConstantInc::apply(BasicBlock::iterator &I){
     // Return the increment instead of the accum+increment
-    BinaryOperator *BOP = dynamic_cast<BinaryOperator*>(I->getOperand(0));
+    BinaryOperator *BOP = reinterpret_cast<BinaryOperator*>(I->getOperand(0));
     Value *Inc = BOP->getOperand(1);
 	return Inc;
 }
