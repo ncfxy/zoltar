@@ -3,6 +3,7 @@
 
 #include "llvm/Instructions.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/BasicBlock.h"
 
 #include <string>
 #include <map>
@@ -23,6 +24,7 @@ class OperatorInfo {
   ///
   /// Actually, the type corresponds to the callScreenerCtor() template, that is
   /// used to indirectly call the constructor.
+public:
   typedef MutationOperator* (*OperatorCtor_t)();
   
   ///
