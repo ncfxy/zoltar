@@ -5,7 +5,6 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/Value.h"
@@ -34,7 +33,7 @@ namespace {
 	bool runOnModule(Module &M);
   public:
     static char ID;
-    Mutator() : ModulePass((intptr_t)&ID) {}
+    Mutator() : ModulePass(ID) {}
   };
 	
 }

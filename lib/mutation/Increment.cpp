@@ -2,6 +2,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "Operator.h"
 #include "Util.h"
+#include "llvm/Analysis/Loads.h"
 
 #include <iostream>
 
@@ -42,10 +43,10 @@ PreIncrement::isCompatible(BasicBlock::iterator &I) {
 	if ( isIncrementOrDecrement(Prev) ) {
 	    //std::cout << *I << "\n";
         
-        SI  = dynamic_cast<StoreInst*>(&(*Prev));
+        SI  = reinterpret_cast<StoreInst*>(&(*Prev));
         Value *st_addr = SI->getPointerOperand();
         
-        NLI = dynamic_cast<LoadInst*>(&(*I));
+        NLI = reinterpret_cast<LoadInst*>(&(*I));
         if (NLI != NULL) {
             Value *ld_addr = NLI->getPointerOperand();
                         
@@ -93,11 +94,11 @@ PostIncrement::isCompatible(BasicBlock::iterator &I) {
 	    BasicBlock::iterator N = I;
 	    N++;
 	    
-	    SI = dynamic_cast<StoreInst*>(&(*I));
+	    SI = reinterpret_cast<StoreInst*>(&(*I));
 	    //std::cout << *I << "\n";
 	    Value *st_addr = SI->getPointerOperand();
 	    
-        if ( NLI = dynamic_cast<LoadInst*>(&(*N)) ) { //check it's not preinc
+        if ( NLI = reinterpret_cast<LoadInst*>(&(*N)) ) { //check it's not preinc
             Value *ld_addr = NLI->getPointerOperand();
                             
 	        if (st_addr == ld_addr)
@@ -118,7 +119,7 @@ Value *
 PostIncrement::apply(BasicBlock::iterator &I){
     BasicBlock *BB = I->getParent();
     
-    StoreInst *SI = dynamic_cast<StoreInst*>(&(*I));
+    StoreInst *SI = reinterpret_cast<StoreInst*>(&(*I));
     BasicBlock::iterator F = I;F--;F--;
     Value *st_addr = SI->getPointerOperand();
     Value *LI = FindAvailableLoadedValue(st_addr, BB, F, 0, NULL);

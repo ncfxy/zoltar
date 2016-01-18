@@ -10,7 +10,7 @@ using namespace llvm;
 
 // += --> = and the like
 namespace {
-	
+
 	class NonConstantInc : public MutationOperator {
   public:
     static char ID;
@@ -18,7 +18,7 @@ namespace {
   public:
     Value* apply(BasicBlock::iterator &I);
   };
-	
+
 }
 
 static RegisterOperator<NonConstantInc>
@@ -31,12 +31,12 @@ NonConstantInc::isCompatible(BasicBlock::iterator &I) {
 
     BinaryOperator *BOP;
 
-    
+
 	if (isAccumulator(I)) {
         BOP = reinterpret_cast<BinaryOperator*>(I->getOperand(0));
-        
+
         Value *Inc = BOP->getOperand(1);
-                    
+
         if ( ! isa<Constant>(Inc) ) {
             //std::cout << *I << "\n";
             return true;

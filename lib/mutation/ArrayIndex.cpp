@@ -26,7 +26,7 @@ char Idx::ID = 0;
 
 bool
 Idx::isCompatible(BasicBlock::iterator &I) {
-    if (GetElementPtrInst *GEPI = dynamic_cast<GetElementPtrInst*>(&(*I))) {
+    if (GetElementPtrInst *GEPI = reinterpret_cast<GetElementPtrInst*>(&(*I))) {
         return GEPI->getNumIndices() == 1;
     }
 	return false;
@@ -34,7 +34,7 @@ Idx::isCompatible(BasicBlock::iterator &I) {
 
 Value *
 Idx::apply(BasicBlock::iterator &I){
-    if (GetElementPtrInst *GEPI = dynamic_cast<GetElementPtrInst*>(&(*I))) {
+    if (GetElementPtrInst *GEPI = reinterpret_cast<GetElementPtrInst*>(&(*I))) {
         Value *idx = GEPI->getOperand(1);
         Value * ct = ConstantInt::get(idx->getType(), 1);
         Value *bop = BinaryOperator::CreateAdd(idx, ct, "mut.inc", GEPI);

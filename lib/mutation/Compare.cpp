@@ -24,7 +24,7 @@ char Eq::ID = 0;
 
 bool
 Eq::isCompatible(BasicBlock::iterator &I) {
-	if (CmpInst *CI = dynamic_cast<CmpInst*>(&(*I))) {
+	if (CmpInst *CI = reinterpret_cast<CmpInst*>(&(*I))) {
 		return CI->getPredicate() != CmpInst::ICMP_EQ &&
 		       CI->getPredicate() != CmpInst::FCMP_OEQ &&
 		       CI->getPredicate() != CmpInst::FCMP_UEQ;
@@ -34,12 +34,12 @@ Eq::isCompatible(BasicBlock::iterator &I) {
 
 Value *
 Eq::apply(BasicBlock::iterator &I){
-    if (ICmpInst *ICI = dynamic_cast<ICmpInst*>(&(*I))) {
+    if (ICmpInst *ICI = reinterpret_cast<ICmpInst*>(&(*I))) {
         return new ICmpInst(I,
                             CmpInst::ICMP_EQ, 
                             ICI->getOperand(0), ICI->getOperand(1));
     }
-    if (FCmpInst *FCI = dynamic_cast<FCmpInst*>(&(*I))) {
+    if (FCmpInst *FCI = reinterpret_cast<FCmpInst*>(&(*I))) {
         return new FCmpInst(I,
                             FCI->getPredicate() < CmpInst::FCMP_UNO ? CmpInst::FCMP_OEQ : CmpInst::FCMP_UEQ, 
                             FCI->getOperand(0), FCI->getOperand(1));
@@ -67,7 +67,7 @@ char NEq::ID = 0;
 
 bool
 NEq::isCompatible(BasicBlock::iterator &I) {
-	if (CmpInst *CI = dynamic_cast<CmpInst*>(&(*I))) {
+	if (CmpInst *CI = reinterpret_cast<CmpInst*>(&(*I))) {
 		return CI->getPredicate() != CmpInst::ICMP_NE &&
 		       CI->getPredicate() != CmpInst::FCMP_ONE &&
 		       CI->getPredicate() != CmpInst::FCMP_UNE;
@@ -77,12 +77,12 @@ NEq::isCompatible(BasicBlock::iterator &I) {
 
 Value *
 NEq::apply(BasicBlock::iterator &I){
-    if (ICmpInst *ICI = dynamic_cast<ICmpInst*>(&(*I))) {
+    if (ICmpInst *ICI = reinterpret_cast<ICmpInst*>(&(*I))) {
         return new ICmpInst(I,
                             CmpInst::ICMP_NE, 
                             ICI->getOperand(0), ICI->getOperand(1));
     }
-    if (FCmpInst *FCI = dynamic_cast<FCmpInst*>(&(*I))) {
+    if (FCmpInst *FCI = reinterpret_cast<FCmpInst*>(&(*I))) {
         return new FCmpInst(I,
                             FCI->getPredicate() < CmpInst::FCMP_UNO ? CmpInst::FCMP_ONE : CmpInst::FCMP_UNE, 
                             FCI->getOperand(0), FCI->getOperand(1));
@@ -110,7 +110,7 @@ char Gt::ID = 0;
 
 bool
 Gt::isCompatible(BasicBlock::iterator &I) {
-	if (CmpInst *CI = dynamic_cast<CmpInst*>(&(*I))) {
+	if (CmpInst *CI = reinterpret_cast<CmpInst*>(&(*I))) {
 		return CI->getPredicate() != CmpInst::ICMP_UGT &&
                CI->getPredicate() != CmpInst::ICMP_SGT &&
 		       CI->getPredicate() != CmpInst::FCMP_OGT &&
@@ -121,12 +121,12 @@ Gt::isCompatible(BasicBlock::iterator &I) {
 
 Value *
 Gt::apply(BasicBlock::iterator &I){
-    if (ICmpInst *ICI = dynamic_cast<ICmpInst*>(&(*I))) {
+    if (ICmpInst *ICI = reinterpret_cast<ICmpInst*>(&(*I))) {
         return new ICmpInst(I,
                             ICI->getPredicate() < CmpInst::ICMP_SGT ? CmpInst::ICMP_UGT : CmpInst::ICMP_SGT, 
                             ICI->getOperand(0), ICI->getOperand(1));
     }
-    if (FCmpInst *FCI = dynamic_cast<FCmpInst*>(&(*I))) {
+    if (FCmpInst *FCI = reinterpret_cast<FCmpInst*>(&(*I))) {
         return new FCmpInst(I,
                             FCI->getPredicate() < CmpInst::FCMP_UNO ? CmpInst::FCMP_OGT : CmpInst::FCMP_UGT, 
                             FCI->getOperand(0), FCI->getOperand(1));
@@ -154,7 +154,7 @@ char GEq::ID = 0;
 
 bool
 GEq::isCompatible(BasicBlock::iterator &I) {
-	if (CmpInst *CI = dynamic_cast<CmpInst*>(&(*I))) {
+	if (CmpInst *CI = reinterpret_cast<CmpInst*>(&(*I))) {
 		return CI->getPredicate() != CmpInst::ICMP_UGE &&
                CI->getPredicate() != CmpInst::ICMP_SGE &&
 		       CI->getPredicate() != CmpInst::FCMP_OGE &&
@@ -165,12 +165,12 @@ GEq::isCompatible(BasicBlock::iterator &I) {
 
 Value *
 GEq::apply(BasicBlock::iterator &I){
-    if (ICmpInst *ICI = dynamic_cast<ICmpInst*>(&(*I))) {
+    if (ICmpInst *ICI = reinterpret_cast<ICmpInst*>(&(*I))) {
         return new ICmpInst(I,
                             ICI->getPredicate() < CmpInst::ICMP_SGT ? CmpInst::ICMP_UGE : CmpInst::ICMP_SGE, 
                             ICI->getOperand(0), ICI->getOperand(1));
     }
-    if (FCmpInst *FCI = dynamic_cast<FCmpInst*>(&(*I))) {
+    if (FCmpInst *FCI = reinterpret_cast<FCmpInst*>(&(*I))) {
         return new FCmpInst(I,
                             FCI->getPredicate() < CmpInst::FCMP_UNO ? CmpInst::FCMP_OGE : CmpInst::FCMP_UGE, 
                             FCI->getOperand(0), FCI->getOperand(1));
@@ -198,7 +198,7 @@ char Lt::ID = 0;
 
 bool
 Lt::isCompatible(BasicBlock::iterator &I) {
-	if (CmpInst *CI = dynamic_cast<CmpInst*>(&(*I))) {
+	if (CmpInst *CI = reinterpret_cast<CmpInst*>(&(*I))) {
 		return CI->getPredicate() != CmpInst::ICMP_ULT &&
                CI->getPredicate() != CmpInst::ICMP_SLT &&
 		       CI->getPredicate() != CmpInst::FCMP_OLT &&
@@ -209,12 +209,12 @@ Lt::isCompatible(BasicBlock::iterator &I) {
 
 Value *
 Lt::apply(BasicBlock::iterator &I){
-    if (ICmpInst *ICI = dynamic_cast<ICmpInst*>(&(*I))) {
+    if (ICmpInst *ICI = reinterpret_cast<ICmpInst*>(&(*I))) {
         return new ICmpInst(I,
                             ICI->getPredicate() < CmpInst::ICMP_SGT ? CmpInst::ICMP_ULT : CmpInst::ICMP_SLT, 
                             ICI->getOperand(0), ICI->getOperand(1));
     }
-    if (FCmpInst *FCI = dynamic_cast<FCmpInst*>(&(*I))) {
+    if (FCmpInst *FCI = reinterpret_cast<FCmpInst*>(&(*I))) {
         return new FCmpInst(I,
                             FCI->getPredicate() < CmpInst::FCMP_UNO ? CmpInst::FCMP_OLT : CmpInst::FCMP_ULT, 
                             FCI->getOperand(0), FCI->getOperand(1));
@@ -242,7 +242,7 @@ char LEq::ID = 0;
 
 bool
 LEq::isCompatible(BasicBlock::iterator &I) {
-	if (CmpInst *CI = dynamic_cast<CmpInst*>(&(*I))) {
+	if (CmpInst *CI = reinterpret_cast<CmpInst*>(&(*I))) {
 		return CI->getPredicate() != CmpInst::ICMP_ULE &&
                CI->getPredicate() != CmpInst::ICMP_SLE &&
 		       CI->getPredicate() != CmpInst::FCMP_OLE &&
@@ -253,12 +253,12 @@ LEq::isCompatible(BasicBlock::iterator &I) {
 
 Value *
 LEq::apply(BasicBlock::iterator &I){
-    if (ICmpInst *ICI = dynamic_cast<ICmpInst*>(&(*I))) {
+    if (ICmpInst *ICI = reinterpret_cast<ICmpInst*>(&(*I))) {
         return new ICmpInst(I,
                             ICI->getPredicate() < CmpInst::ICMP_SGT ? CmpInst::ICMP_ULE : CmpInst::ICMP_SLE, 
                             ICI->getOperand(0), ICI->getOperand(1));
     }
-    if (FCmpInst *FCI = dynamic_cast<FCmpInst*>(&(*I))) {
+    if (FCmpInst *FCI = reinterpret_cast<FCmpInst*>(&(*I))) {
         return new FCmpInst(I,
                             FCI->getPredicate() < CmpInst::FCMP_UNO ? CmpInst::FCMP_OLE : CmpInst::FCMP_ULE, 
                             FCI->getOperand(0), FCI->getOperand(1));

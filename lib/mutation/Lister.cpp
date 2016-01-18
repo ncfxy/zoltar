@@ -9,9 +9,10 @@
 #include "Operator.h"
 
 #include <string>
+#include <iostream>
 
 using namespace llvm;
-
+using namespace std;
 
 namespace {
 
@@ -19,7 +20,7 @@ namespace {
     bool runOnModule(Module & M);
   public:
     static char ID;
-      MutationLister():ModulePass((intptr_t) & ID) {
+      MutationLister():ModulePass(ID) {
   }};
 
 }

@@ -8,9 +8,9 @@ isAccumulator(Instruction *I) {
     BinaryOperator *BOP;
     LoadInst *LI;
     
-	if ( (SI = dynamic_cast<StoreInst*>(I)) ) {
-	    if ( (BOP = dynamic_cast<BinaryOperator*>(SI->getOperand(0))) ) {
-	        if ( (LI = dynamic_cast<LoadInst*>(BOP->getOperand(0))) ) {
+	if ( (SI = reinterpret_cast<StoreInst*>(I)) ) {
+	    if ( (BOP = reinterpret_cast<BinaryOperator*>(SI->getOperand(0))) ) {
+	        if ( (LI = reinterpret_cast<LoadInst*>(BOP->getOperand(0))) ) {
                 Value *st_addr = SI->getPointerOperand();
                 Value *ld_addr = LI->getPointerOperand();
 
@@ -30,9 +30,9 @@ isIncrementOrDecrement(Instruction *I) {
     ConstantInt *C;
     
     if (isAccumulator(I) ) {
-        BOP = dynamic_cast<BinaryOperator*>(I->getOperand(0));
+        BOP = reinterpret_cast<BinaryOperator*>(I->getOperand(0));
         
-        if ( (C = dynamic_cast<ConstantInt*>(BOP->getOperand(1))) ) {
+        if ( (C = reinterpret_cast<ConstantInt*>(BOP->getOperand(1))) ) {
             return C->isOne();
 	    }
     }
@@ -44,9 +44,9 @@ getOldValue(Instruction *I) {
     StoreInst *SI;
     BinaryOperator *BOP;
     LoadInst *LI;
-	SI  = dynamic_cast<StoreInst*>(I);
-	BOP = dynamic_cast<BinaryOperator*>(SI->getOperand(0));
-	LI  = dynamic_cast<LoadInst*>(BOP->getOperand(0));
+	SI  = reinterpret_cast<StoreInst*>(I);
+	BOP = reinterpret_cast<BinaryOperator*>(SI->getOperand(0));
+	LI  = reinterpret_cast<LoadInst*>(BOP->getOperand(0));
 	
 	return LI;
 }
