@@ -1237,8 +1237,8 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-LLVM_SRC_ROOT="../llvm/llvm-2.4"
-LLVM_OBJ_ROOT="../llvm/llvm-2.4"
+LLVM_SRC_ROOT="../llvm/llvm-2.8"
+LLVM_OBJ_ROOT="../llvm/llvm-2.8"
 if test "${with_llvmsrc+set}" = set; then
   withval="$with_llvmsrc"
   LLVM_SRC_ROOT="$withval"
