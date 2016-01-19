@@ -23,12 +23,6 @@ OperatorManager* OperatorManager::getInstance() {
 
 unsigned OperatorManager::registerOperator(OperatorInfo& oi) {
   std::cout << nextId << " " << oi.operatorName << "\n";
-  std::cout << &oi << "\n";
-  //operators[nextId] = &oi;
-  OperatorInfoTable mmm;
-  int a = 100l;
-  mmm[0] = &oi;
-  std::cout << mmm[0] << "\n";
   operators.insert(std::pair<int, OperatorInfo *>(nextId, &oi));
 
   operatorsByName[oi.operatorName] = &oi;
