@@ -97,7 +97,7 @@ typedef std::list<std::string> OperatorNameList;
 /// Singleton class that stores all the registered operators.
 class OperatorManager {
 
-  static OperatorManager instance;
+  static OperatorManager* instance;
   static unsigned nextId;
   
 public:
@@ -231,7 +231,8 @@ public:
   // default implementation to sort the table before we print...
   virtual void printOptionInfo(const cl::Option &O, size_t GlobalWidth) const {
     OperatorNameParser *PNP = const_cast<OperatorNameParser*>(this);
-    std::sort(PNP->Values.begin(), PNP->Values.end(), ValLessThan);
+    /* TODO: solve This problem */
+    //std::sort(PNP->Values.begin(), PNP->Values.end(), ValLessThan);
     cl::parser<OperatorInfo*>::printOptionInfo(O, GlobalWidth);
   }
 };

@@ -2,23 +2,35 @@
 #include "llvm/Instruction.h"
 
 #include <iostream>
+#include <map>
 
 OperatorInfo::OperatorInfo(const std::string& name, const std::string& descr, OperatorCtor_t ctor, CheckCompatible_t check)
 : operatorName(name), operatorDescription(descr), enabled(false), constructorFun(ctor), checkFun(check) {
 }
 
-OperatorManager OperatorManager::instance;
+OperatorManager* OperatorManager::instance;
 unsigned OperatorManager::nextId = 0;
 
 
 OperatorManager* OperatorManager::getInstance() {
-    return &instance;
+	if(instance == NULL){
+		instance = new OperatorManager();
+		return instance;
+	}
+    return instance;
 }
 
 
 unsigned OperatorManager::registerOperator(OperatorInfo& oi) {
-  //std::cout << nextId << " " << oi.operatorName << "\n";
-  operators[nextId] = &oi;
+  std::cout << nextId << " " << oi.operatorName << "\n";
+  std::cout << &oi << "\n";
+  //operators[nextId] = &oi;
+  OperatorInfoTable mmm;
+  int a = 100l;
+  mmm[0] = &oi;
+  std::cout << mmm[0] << "\n";
+  operators.insert(std::pair<int, OperatorInfo *>(nextId, &oi));
+
   operatorsByName[oi.operatorName] = &oi;
   operatorNames.push_back(oi.operatorName);
   operatorList.push_back(&oi);
