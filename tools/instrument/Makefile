@@ -6,7 +6,7 @@
 # License. See LICENSE.TXT for details.
 # 
 ##===----------------------------------------------------------------------===##
-CXXFLAGS += -fexceptions
+CXXFLAGS += -fexceptions -g
 
 LEVEL = ../..
 TOOLNAME = instrument

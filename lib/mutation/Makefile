@@ -7,7 +7,7 @@
 # 
 ##===----------------------------------------------------------------------===##
 
-CXXFLAGS+=-fexceptions
+CXXFLAGS+=-fexceptions -g
 
 LEVEL = ../..
 LIBRARYNAME = mutation
