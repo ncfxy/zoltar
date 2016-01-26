@@ -1,0 +1,5 @@
+1、安装llvm-2.8:
+	在/lib/ExecutionEngine/JIT/Intercept.cpp中加入
+	#include <unistd.h>
+
+2、在系统中安装ncurses，具体情况依照系统而定
